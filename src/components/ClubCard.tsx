@@ -25,8 +25,7 @@ const ClubCard: React.FC<ClubCardProps> = ({
 
   const [isImageLoading, setIsImageLoading] = useState(true);
 
-  const handleViewDetails = (e: React.MouseEvent) => {
-    console.log(`Opening details for ${club.brand} ${club.model}`);
+  const handleViewDetails = () => {
     onViewDetails();
   };
 

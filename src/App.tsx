@@ -15,7 +15,7 @@ interface ClubsData {
 }
 
 // Cast the imported JSON to the correct type
-const typedClubsData = clubsData as ClubsData;
+const typedClubsData = clubsData as unknown as ClubsData;
 
 // Debug: Log the loaded data
 console.log("Clubs Data:", typedClubsData.clubs);

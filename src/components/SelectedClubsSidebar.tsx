@@ -8,7 +8,7 @@ interface ClubsData {
 }
 
 // Cast the imported JSON to the correct type
-const typedClubsData = clubsData as ClubsData;
+const typedClubsData = clubsData as unknown as ClubsData;
 
 interface SelectedClubsSidebarProps {
   selectedClubs: (Club & { image_path: string })[];
@@ -383,7 +383,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
               ) : (
                 <>
                   <ul className="space-y-4">
-                    {sortedClubs.map((club, index) => (
+                    {sortedClubs.map((club) => (
                       <li
                         key={club.id}
                         className="flex items-center bg-gray-50 p-3 rounded-lg shadow-sm"
