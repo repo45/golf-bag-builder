@@ -1,0 +1,604 @@
+{
+  "clubs": [
+    {
+      "id": 1,
+      "type": "Driver",
+      "subType": "Adjustable",
+      "specificType": null,
+      "brand": "TaylorMade",
+      "model": "Stealth 2",
+      "price": 599.99,
+      "loft": "10.5°",
+      "forgivenessRating": 8.5,
+      "difficultyRating": 3,
+      "description": "High MOI driver with adjustable loft for maximum distance.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 599.99,
+          "url": "https://www.golfgalaxy.com/taylormade-stealth2"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 589.99,
+          "url": "https://valueguide.pga.com/taylormade-stealth2"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 579.99,
+          "url": "https://www.golfbidder.com/taylormade-stealth2"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Driver",
+      "subType": "Standard",
+      "specificType": null,
+      "brand": "Callaway",
+      "model": "Paradym",
+      "price": 649.99,
+      "loft": "9°",
+      "forgivenessRating": 8.0,
+      "difficultyRating": 4,
+      "description": "Optimized for low spin and high launch.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 649.99,
+          "url": "https://www.golfgalaxy.com/callaway-paradym"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 639.99,
+          "url": "https://valueguide.pga.com/callaway-paradym"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 629.99,
+          "url": "https://www.golfbidder.com/callaway-paradym"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Wood",
+      "subType": "3-Wood",
+      "specificType": null,
+      "brand": "Ping",
+      "model": "G430 Max",
+      "price": 349.99,
+      "loft": "15°",
+      "forgivenessRating": 8.8,
+      "difficultyRating": 2,
+      "description": "Versatile 3-wood with high launch and forgiveness.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 349.99,
+          "url": "https://www.golfgalaxy.com/ping-g430max"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 339.99,
+          "url": "https://valueguide.pga.com/ping-g430max"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 329.99,
+          "url": "https://www.golfbidder.com/ping-g430max"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Wood",
+      "subType": "5-Wood",
+      "specificType": null,
+      "brand": "Titleist",
+      "model": "TSR2",
+      "price": 399.99,
+      "loft": "16.5°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "Low-spin 5-wood for precise distance.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 399.99,
+          "url": "https://www.golfgalaxy.com/titleist-tsr2"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 389.99,
+          "url": "https://valueguide.pga.com/titleist-tsr2"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 379.99,
+          "url": "https://www.golfbidder.com/titleist-tsr2"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "Wood",
+      "subType": "5-Wood",
+      "specificType": null,
+      "brand": "TaylorMade",
+      "model": "Stealth 2 HD",
+      "price": 369.99,
+      "loft": "18°",
+      "forgivenessRating": 8.0,
+      "difficultyRating": 3,
+      "description": "High-draw 5-wood for consistent ball flight.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 369.99,
+          "url": "https://www.golfgalaxy.com/taylormade-stealth2hd"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 359.99,
+          "url": "https://valueguide.pga.com/taylormade-stealth2hd"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 349.99,
+          "url": "https://www.golfbidder.com/taylormade-stealth2hd"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "Hybrid",
+      "subType": "3-Hybrid",
+      "specificType": null,
+      "brand": "TaylorMade",
+      "model": "Stealth 2",
+      "price": 279.99,
+      "loft": "19°",
+      "forgivenessRating": 8.2,
+      "difficultyRating": 3,
+      "description": "Versatile hybrid for long approach shots.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 279.99,
+          "url": "https://www.golfgalaxy.com/taylormade-stealth2-hybrid"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 269.99,
+          "url": "https://valueguide.pga.com/taylormade-stealth2-hybrid"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 259.99,
+          "url": "https://www.golfbidder.com/taylormade-stealth2-hybrid"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "Hybrid",
+      "subType": "4-Hybrid",
+      "specificType": null,
+      "brand": "Callaway",
+      "model": "Apex",
+      "price": 299.99,
+      "loft": "20°",
+      "forgivenessRating": 7.8,
+      "difficultyRating": 4,
+      "description": "Premium hybrid with adjustable weighting.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 299.99,
+          "url": "https://www.golfgalaxy.com/callaway-apex"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 289.99,
+          "url": "https://valueguide.pga.com/callaway-apex"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 279.99,
+          "url": "https://www.golfbidder.com/callaway-apex"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "4 Iron",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "21°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "4-iron from the 2017 P790 set, offering distance and feel.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "5 Iron",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "23.5°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "5-iron from the 2017 P790 set, balancing forgiveness and control.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "6 Iron",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "26.5°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "6-iron from the 2017 P790 set, ideal for mid-range shots.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "7 Iron",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "30.5°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "7-iron from the 2017 P790 set, versatile for approach shots.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "8 Iron",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "35°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "8-iron from the 2017 P790 set, precise for short approaches.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "9 Iron",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "40°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "9-iron from the 2017 P790 set, great for scoring shots.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "Iron",
+      "subType": "Individual",
+      "specificType": "Pitching Wedge",
+      "brand": "TaylorMade",
+      "model": "P790 2017",
+      "price": 999.99,
+      "loft": "45°",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "Pitching wedge from the 2017 P790 set, ideal for wedges.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 999.99,
+          "url": "https://www.golfgalaxy.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 979.99,
+          "url": "https://valueguide.pga.com/taylormade-p790-2017"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 959.99,
+          "url": "https://www.golfbidder.com/taylormade-p790-2017"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "Wedge",
+      "subType": "Sand Wedge",
+      "specificType": null,
+      "brand": "Cleveland",
+      "model": "RTX 6 ZipCore",
+      "price": 169.99,
+      "loft": "56°",
+      "forgivenessRating": 7.0,
+      "difficultyRating": 5,
+      "description": "Versatile sand wedge with enhanced spin control.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 169.99,
+          "url": "https://www.golfgalaxy.com/cleveland-rtx6zipcore"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 159.99,
+          "url": "https://valueguide.pga.com/cleveland-rtx6zipcore"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 149.99,
+          "url": "https://www.golfbidder.com/cleveland-rtx6zipcore"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "Wedge",
+      "subType": "Pitching Wedge",
+      "specificType": null,
+      "brand": "Vokey",
+      "model": "SM9",
+      "price": 179.99,
+      "loft": "52°",
+      "forgivenessRating": 6.5,
+      "difficultyRating": 6,
+      "description": "Tour-proven gap wedge with multiple grind options.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 179.99,
+          "url": "https://www.golfgalaxy.com/vokey-sm9"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 169.99,
+          "url": "https://valueguide.pga.com/vokey-sm9"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 159.99,
+          "url": "https://www.golfbidder.com/vokey-sm9"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "Wedge",
+      "subType": "Lob Wedge",
+      "specificType": null,
+      "brand": "TaylorMade",
+      "model": "MG4",
+      "price": 189.99,
+      "loft": "58°",
+      "forgivenessRating": 6.8,
+      "difficultyRating": 5,
+      "description": "High-spin lob wedge with raw face technology.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 189.99,
+          "url": "https://www.golfgalaxy.com/taylormade-mg4"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 179.99,
+          "url": "https://valueguide.pga.com/taylormade-mg4"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 169.99,
+          "url": "https://www.golfbidder.com/taylormade-mg4"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "Putter",
+      "subType": "Mallet Putter",
+      "specificType": null,
+      "brand": "Odyssey",
+      "model": "White Hot OG #7",
+      "price": 249.99,
+      "loft": "N/A",
+      "forgivenessRating": 8.0,
+      "difficultyRating": 3,
+      "description": "Mallet putter with soft feel and high MOI.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 249.99,
+          "url": "https://www.golfgalaxy.com/odyssey-whitehotog7"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 239.99,
+          "url": "https://valueguide.pga.com/odyssey-whitehotog7"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 229.99,
+          "url": "https://www.golfbidder.com/odyssey-whitehotog7"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "Putter",
+      "subType": "Mallet Putter",
+      "specificType": null,
+      "brand": "Scotty Cameron",
+      "model": "Phantom X 5.5",
+      "price": 429.99,
+      "loft": "N/A",
+      "forgivenessRating": 7.5,
+      "difficultyRating": 5,
+      "description": "Premium mallet putter with customizable weights.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 429.99,
+          "url": "https://www.golfgalaxy.com/scottycameron-phantomx55"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 419.99,
+          "url": "https://valueguide.pga.com/scottycameron-phantomx55"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 409.99,
+          "url": "https://www.golfbidder.com/scottycameron-phantomx55"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "Putter",
+      "subType": "Blade Putter",
+      "specificType": null,
+      "brand": "Ping",
+      "model": "Sigma 2 Anser",
+      "price": 199.99,
+      "loft": "N/A",
+      "forgivenessRating": 7.8,
+      "difficultyRating": 4,
+      "description": "Classic blade putter with adjustable shaft.",
+      "prices": [
+        {
+          "retailer": "Golf Galaxy",
+          "price": 199.99,
+          "url": "https://www.golfgalaxy.com/ping-sigma2anser"
+        },
+        {
+          "retailer": "PGA Value Guide",
+          "price": 189.99,
+          "url": "https://valueguide.pga.com/ping-sigma2anser"
+        },
+        {
+          "retailer": "Golfbidder",
+          "price": 179.99,
+          "url": "https://www.golfbidder.com/ping-sigma2anser"
+        }
+      ]
+    }
+  ]
+}
