@@ -164,7 +164,7 @@ const App: React.FC = () => {
       );
       const clubWithImage = {
         ...club,
-        image_path: clubModel ? `./assets/club_images/${clubModel.image}.jpg` : "driver_images/placeholder.jpg"
+        image_path: clubModel ? `club_images/${clubModel.image}.jpg` : "driver_images/placeholder.jpg"
       };
       setSelectedClubs([...selectedClubs, clubWithImage]);
       toast.success(`${club.brand} ${club.model} added to your bag!`, {
@@ -488,7 +488,7 @@ const App: React.FC = () => {
                         onDeselect={() => handleRemoveFromBag(clubModel.variants[0].id)}
                         onViewDetails={() => handleViewDetails(clubModel, clubModel.variants[0])}
                         isBagFull={selectedClubs.length >= 14}
-                        imageSrc={`./src/assets/club_images/${clubModel.image}.jpg`}
+                        imageSrc={`/club_images/${clubModel.image}.jpg`}
                       />
                     );
                   })
@@ -513,7 +513,7 @@ const App: React.FC = () => {
         clubModel={selectedClubModel}
         variant={selectedVariant}
         selectedClubs={selectedClubs}
-        imageSrc={selectedClubModel ? `./src/assets/club_images/${selectedClubModel.image}.jpg` : "https://via.placeholder.com/300x200?text=Golf+Club"}
+        imageSrc={selectedClubModel ? `/club_images/${selectedClubModel.image}.jpg` : "https://via.placeholder.com/300x200?text=Golf+Club"}
         onClose={() => {
           setSelectedClubModel(null);
           setSelectedVariant(null);
