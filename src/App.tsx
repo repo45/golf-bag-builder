@@ -99,6 +99,18 @@ const App: React.FC = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
   const [isBagPinned, setIsBagPinned] = useState<boolean>(false);
   const [openCategories, setOpenCategories] = useState<string[]>([]);
+  // State for sorting and additional filters
+  const [sortOption, setSortOption] = useState<string>('default');
+  const [filterHandedness, setFilterHandedness] = useState<string>('');
+  const [filterBrand, setFilterBrand] = useState<string>('');
+  const [filterPriceMin, setFilterPriceMin] = useState<string>('');
+  const [filterPriceMax, setFilterPriceMax] = useState<string>('');
+  // State for sidebar "Sort & Filter" section
+  const [isSortFilterOpen, setIsSortFilterOpen] = useState<boolean>(true);
+  // State for search bar visibility in top nav
+  const [showSearchInTopNav, setShowSearchInTopNav] = useState<boolean>(false);
+  // State for toggling search bar on mobile
+  const [isSearchBarOpen, setIsSearchBarOpen] = useState<boolean>(false);
 
   // Debounce search query
   useEffect(() => {
@@ -109,43 +121,110 @@ const App: React.FC = () => {
     return () => debouncedSetSearch.cancel();
   }, [searchQuery]);
 
-  // Filter club models based on category, subItem, subSubItem, and search
-  const filteredClubModels: ClubModel[] = useMemo(() => {
-    return typedClubsData.clubs.filter(clubModel => {
-      const matchesCategory = clubModel.type === selectedCategory;
-
-      const matchesSubItem = selectedSubItem
-        ? selectedCategory === "Hybrid"
-          ? clubModel.variants.some(variant => 
-              variant.loft === selectedSubItem || variant.loft === `${parseFloat(selectedSubItem.split(" ")[0])} degrees`
-            )
-          : selectedCategory === "Iron Set"
-          ? selectedSubSubItem
-            ? clubModel.subType === "Individual" && clubModel.specificType?.toLowerCase() === selectedSubSubItem.toLowerCase()
-            : clubModel.subType === selectedSubItem
-          : clubModel.specificType?.toLowerCase() === selectedSubItem.toLowerCase()
-        : true;
-
-      const matchesSubSubItem = selectedSubSubItem && selectedCategory !== "Iron Set"
-        ? clubModel.specificType?.toLowerCase() === selectedSubSubItem.toLowerCase()
-        : true;
-
-      const matchesSearch = debouncedSearchQuery
-        ? clubModel.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          clubModel.model.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          clubModel.type.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-        : true;
-
-      // Debug logging to trace filtering
-      if (matchesCategory && matchesSearch) {
-        console.log(
-          `Model: ${clubModel.brand} ${clubModel.model}, Type: ${clubModel.type}, SubType: ${clubModel.subType}, SpecificType: ${clubModel.specificType}, Matches SubItem: ${matchesSubItem}, Matches SubSubItem: ${matchesSubSubItem}`
-        );
+  // Scroll listener to show/hide search bar in top nav
+  useEffect(() => {
+    const handleScroll = () => {
+      const banner = document.getElementById('banner');
+      if (banner) {
+        const bannerBottom = banner.getBoundingClientRect().bottom;
+        setShowSearchInTopNav(bannerBottom < 64); // 64px is the header height
       }
+    };
 
-      return matchesCategory && matchesSubItem && matchesSubSubItem && matchesSearch;
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Extract unique handedness values for filter dropdown
+  const handednessOptions = useMemo(() => {
+    const handednessSet = new Set<string>();
+    typedClubsData.clubs.forEach(clubModel => {
+      clubModel.variants.forEach(variant => {
+        const handednessMatch = variant.description.match(/Handedness: (Right-Handed|Left-Handed)/i);
+        if (handednessMatch) {
+          handednessSet.add(handednessMatch[1]);
+        }
+      });
     });
-  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery]);
+    return Array.from(handednessSet).sort();
+  }, []);
+
+  // Extract unique brands for filter dropdown
+  const brandOptions = useMemo(() => {
+    const brandSet = new Set<string>();
+    typedClubsData.clubs.forEach(clubModel => {
+      if (clubModel.brand) {
+        brandSet.add(clubModel.brand);
+      }
+    });
+    return Array.from(brandSet).sort();
+  }, []);
+
+  // Filter and sort club models
+  const filteredClubModels: ClubModel[] = useMemo(() => {
+    return typedClubsData.clubs
+      .filter(clubModel => {
+        const matchesCategory = clubModel.type === selectedCategory;
+
+        const matchesSubItem = selectedSubItem
+          ? selectedCategory === "Hybrid"
+            ? clubModel.variants.some(variant => 
+                variant.loft === selectedSubItem || variant.loft === `${parseFloat(selectedSubItem.split(" ")[0])} degrees`
+              )
+            : selectedCategory === "Iron Set"
+            ? selectedSubSubItem
+              ? clubModel.subType === "Individual" && clubModel.specificType?.toLowerCase() === selectedSubSubItem.toLowerCase()
+              : clubModel.subType === selectedSubItem
+            : clubModel.specificType?.toLowerCase() === selectedSubItem.toLowerCase()
+          : true;
+
+        const matchesSubSubItem = selectedSubSubItem && selectedCategory !== "Iron Set"
+          ? clubModel.specificType?.toLowerCase() === selectedSubSubItem.toLowerCase()
+          : true;
+
+        const matchesSearch = debouncedSearchQuery
+          ? clubModel.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            clubModel.model.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            clubModel.type.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+          : true;
+
+        // Additional filters
+        const matchesHandedness = filterHandedness
+          ? clubModel.variants.some(variant => {
+              const handednessMatch = variant.description.match(/Handedness: (Right-Handed|Left-Handed)/i);
+              return handednessMatch && handednessMatch[1] === filterHandedness;
+            })
+          : true;
+
+        const matchesBrand = filterBrand
+          ? clubModel.brand === filterBrand
+          : true;
+
+        const price = clubModel.variants[0].price;
+        const minPrice = filterPriceMin ? parseFloat(filterPriceMin) : 0;
+        const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : Infinity;
+        const matchesPriceRange = price >= minPrice && price <= maxPrice;
+
+        return matchesCategory && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesPriceRange;
+      })
+      .sort((a, b) => {
+        if (sortOption === 'price-asc') {
+          return a.variants[0].price - b.variants[0].price;
+        } else if (sortOption === 'price-desc') {
+          return b.variants[0].price - a.variants[0].price;
+        } else if (sortOption === 'brand') {
+          return a.brand.localeCompare(b.brand);
+        } else if (sortOption === 'loft') {
+          const getLoftValue = (loft: string): number => {
+            if (!loft || loft === 'N/A') return Infinity;
+            const cleanedLoft = loft.replace('°', '').replace(' degrees', '').replace('degree', '').trim();
+            return parseFloat(cleanedLoft) || Infinity;
+          };
+          return getLoftValue(a.variants[0].loft) - getLoftValue(b.variants[0].loft);
+        }
+        return 0; // Default: No sorting
+      });
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterPriceMin, filterPriceMax, sortOption]);
 
   // Debug: Log filtered clubs
   console.log("Filtered Clubs:", filteredClubModels);
@@ -241,6 +320,56 @@ const App: React.FC = () => {
             </a>
           </nav>
           <div className="flex items-center space-x-4">
+            {/* Search Bar in Top Nav (shown on scroll) */}
+            {showSearchInTopNav && (
+              <>
+                <button
+                  className="md:hidden text-gray-600 hover:text-gray-800"
+                  onClick={() => setIsSearchBarOpen(!isSearchBarOpen)}
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </button>
+                <div className={`relative ${isSearchBarOpen || window.innerWidth >= 768 ? 'block' : 'hidden'} md:w-64`}>
+                  <input
+                    type="text"
+                    placeholder="Search clubs..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full py-1 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600 text-sm"
+                  />
+                  <button
+                    className="absolute right-0 top-0 h-full px-2 bg-green-600 text-white rounded-r-md hover:bg-green-700 transition-colors"
+                    onClick={() => setSearchQuery(searchQuery)}
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </>
+            )}
             <div className="flex items-center">
               <svg
                 className="w-6 h-6 text-gray-600 mr-2"
@@ -259,7 +388,7 @@ const App: React.FC = () => {
                 {selectedClubs.length} Clubs
               </span>
               <span className="ml-2 text-green-600 font-semibold">
-                ${totalPrice.toFixed(2)}
+                £{totalPrice.toFixed(2)}
               </span>
             </div>
             <button
@@ -284,7 +413,7 @@ const App: React.FC = () => {
         </div>
       </header>
       <div className="relative">
-        {/* Hero Section with New Background Image */}
+        {/* Hero Section with Background Image */}
         <div
           className="relative min-h-[calc(100vh-64px)] flex w-full flex-col items-center justify-center p-5 text-center md:px-20 lg:space-y-10"
           id="banner"
@@ -337,7 +466,8 @@ const App: React.FC = () => {
               isCategorySidebarOpen ? "block" : "hidden md:block"
             }`}
           >
-            <ul>
+            {/* Categories */}
+            <ul className="mb-6">
               {categories.map(category => (
                 <li key={category.name} className="mb-2">
                   <div className="flex items-center justify-between">
@@ -457,13 +587,114 @@ const App: React.FC = () => {
                 </li>
               ))}
             </ul>
+
+            {/* Sort & Filter Section */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800">Sort & Filter</h3>
+                <button
+                  onClick={() => setIsSortFilterOpen(!isSortFilterOpen)}
+                  className="p-2"
+                >
+                  <svg
+                    className={`w-4 h-4 transform transition-transform ${
+                      isSortFilterOpen ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
+              {isSortFilterOpen && (
+                <div className="mt-2 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Sort By</label>
+                    <select
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <option value="default">Default</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                      <option value="brand">Brand (A-Z)</option>
+                      <option value="loft">Loft (Low to High)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Brand</label>
+                    <select
+                      value={filterBrand}
+                      onChange={(e) => setFilterBrand(e.target.value)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <option value="">All Brands</option>
+                      {brandOptions.map(brand => (
+                        <option key={brand} value={brand}>{brand}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Handedness</label>
+                    <select
+                      value={filterHandedness}
+                      onChange={(e) => setFilterHandedness(e.target.value)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <option value="">All</option>
+                      {handednessOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Price Range</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={filterPriceMin}
+                        onChange={(e) => setFilterPriceMin(e.target.value)}
+                        className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={filterPriceMax}
+                        onChange={(e) => setFilterPriceMax(e.target.value)}
+                        className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSortOption('default');
+                      setFilterHandedness('');
+                      setFilterBrand('');
+                      setFilterPriceMin('');
+                      setFilterPriceMax('');
+                    }}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              )}
+            </div>
           </nav>
           <main
-            className={`flex-1 p-6 overflow-auto transition-all duration-300 ${
-              isBagPinned ? "md:mr-[320px]" : ""
-            }`}
+            className={`flex-1 p-6 overflow-auto transition-all duration-300`}
           >
             <div className="max-w-7xl mx-auto">
+              {/* Club Grid */}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(14.5rem,1fr))] gap-6">
                 {filteredClubModels.length > 0 ? (
                   filteredClubModels.map(clubModel => {
@@ -507,6 +738,8 @@ const App: React.FC = () => {
           onAdd={handleAddToBag}
           isPinned={isBagPinned}
           onPinToggle={() => setIsBagPinned(!isBagPinned)}
+          defaultOpen={selectedClubs.length > 0 || isBagPinned}
+          clubsData={typedClubsData.clubs} // Pass clubsData prop
         />
       </div>
       <ClubDetailModal
