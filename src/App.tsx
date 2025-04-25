@@ -22,6 +22,11 @@ console.log("Clubs Data:", typedClubsData.clubs);
 
 const categories = [
   {
+    name: "All", // New "All" category
+    icon: "M12 2L2 22h20L12 2z", // Icon for "All" (triangle, can adjust as needed)
+    subItems: [],
+  },
+  {
     name: "Driver",
     icon: "M12 2L15 8H9L12 2Z M12 22L9 16H15L12 22Z",
     subItems: [],
@@ -88,7 +93,7 @@ const categories = [
 ];
 
 const App: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("Driver");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All"); // Default to "All"
   const [selectedSubItem, setSelectedSubItem] = useState<string | null>(null);
   const [selectedSubSubItem, setSelectedSubSubItem] = useState<string | null>(null);
   const [selectedClubModel, setSelectedClubModel] = useState<ClubModel | null>(null);
@@ -164,7 +169,8 @@ const App: React.FC = () => {
   const filteredClubModels: ClubModel[] = useMemo(() => {
     return typedClubsData.clubs
       .filter(clubModel => {
-        const matchesCategory = clubModel.type === selectedCategory;
+        // Skip category filter if "All" is selected
+        const matchesCategory = selectedCategory === "All" || clubModel.type === selectedCategory;
 
         const matchesSubItem = selectedSubItem
           ? selectedCategory === "Hybrid"
@@ -725,7 +731,7 @@ const App: React.FC = () => {
                   })
                 ) : (
                   <p className="text-gray-600 italic col-span-full">
-                    No {selectedCategory}s available.
+                    No clubs available.
                   </p>
                 )}
               </div>
@@ -739,7 +745,7 @@ const App: React.FC = () => {
           isPinned={isBagPinned}
           onPinToggle={() => setIsBagPinned(!isBagPinned)}
           defaultOpen={selectedClubs.length > 0 || isBagPinned}
-          clubsData={typedClubsData.clubs} // Pass clubsData prop
+          clubsData={typedClubsData.clubs}
         />
       </div>
       <ClubDetailModal
