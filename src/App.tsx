@@ -1,25 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
+import axios from 'axios';
 import ClubCard from "./components/ClubCard";
 import ClubDetailModal from "./components/ClubDetailModal";
 import SelectedClubsSidebar from "./components/SelectedClubsSidebar";
 import MyClubsModal from "./components/MyClubsModal";
-import clubsData from "./data/clubs.json";
 import { Club, ClubModel } from "./types/club";
 import grassBg from "./assets/grass_bg_1920x1080_png.png";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import debounce from "lodash/debounce";
 
-// Define the structure of the JSON data
+// Define the structure of the API response
 interface ClubsData {
   clubs: ClubModel[];
 }
-
-// Cast the imported JSON to the correct type
-const typedClubsData = clubsData as unknown as ClubsData;
-
-// Debug: Log the loaded data
-console.log("Clubs Data:", typedClubsData.clubs);
 
 // Define types for the categories array
 interface SubSubItem {
@@ -112,12 +106,15 @@ const categories: Category[] = [
 ];
 
 const App: React.FC = () => {
+  const [clubsData, setClubsData] = useState<ClubsData>({ clubs: [] });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedSubItem, setSelectedSubItem] = useState<string | null>(null);
   const [selectedSubSubItem, setSelectedSubSubItem] = useState<string | null>(null);
   const [selectedClubModel, setSelectedClubModel] = useState<ClubModel | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Club | null>(null);
-  const [selectedClubs, setSelectedClubs] = useState<(Club & { image_path: string; handicapperLevel: string })[]>([]);
+  const [selectedClubs, setSelectedClubs] = useState<(Club & { image_path: string; handicapperlevel: string })[]>([]);
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
@@ -141,6 +138,28 @@ const App: React.FC = () => {
   const [isBagSidebarOpen, setIsBagSidebarOpen] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
 
+  // Fetch club data from API on mount
+  useEffect(() => {
+    const fetchClubs = async () => {
+      console.log('Starting API fetch to /api/clubs...');
+      try {
+        const response = await axios.get('/api/clubs');
+        console.log('API Response:', response.data);
+        setClubsData(response.data);
+        console.log('Clubs Data Set:', response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching clubs:', err);
+        setError('Failed to load club data. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    fetchClubs();
+  }, []);
+  useEffect(() => {
+    console.log("clubsData after fetch:", clubsData);
+  }, [clubsData]);
   // Load lofts from local storage on mount
   useEffect(() => {
     const savedLofts = localStorage.getItem('myClubsLofts');
@@ -203,24 +222,24 @@ const App: React.FC = () => {
   // Extract unique brands for filter dropdown
   const brandOptions = useMemo(() => {
     const brandSet = new Set<string>();
-    typedClubsData.clubs.forEach(clubModel => {
+    clubsData.clubs.forEach(clubModel => {
       if (clubModel.brand) {
         brandSet.add(clubModel.brand);
       }
     });
     return Array.from(brandSet).sort();
-  }, []);
+  }, [clubsData.clubs]);
 
   // Extract unique handicapper levels for filter buttons
-  const handicapperLevelOptions = useMemo(() => {
+  const handicapperlevelOptions = useMemo(() => {
     const levelSet = new Set<string>();
-    typedClubsData.clubs.forEach(clubModel => {
-      if (clubModel.handicapperLevel) {
-        levelSet.add(clubModel.handicapperLevel);
+    clubsData.clubs.forEach(clubModel => {
+      if (clubModel.handicapperlevel) {
+        levelSet.add(clubModel.handicapperlevel);
       }
     });
     return Array.from(levelSet).sort();
-  }, []);
+  }, [clubsData.clubs]);
 
   // Function to calculate recommended lofts based on user-input lofts
   const calculateRecommendedLofts = (lofts: number[]) => {
@@ -257,53 +276,50 @@ const App: React.FC = () => {
       recommendedLofts,
     });
 
-    return typedClubsData.clubs
+    if (loading || !clubsData.clubs || !Array.isArray(clubsData.clubs)) {
+      console.log("Skipping filtering: Data not ready", { loading, clubs: clubsData.clubs });
+      return [];
+    }
+
+    console.log("Total clubs before filtering:", clubsData.clubs.length);
+
+    return clubsData.clubs
       .filter(clubModel => {
+        // Use `type` to match `selectedCategory`
         const matchesCategory = selectedCategory === "All" || clubModel.type === selectedCategory;
 
-        const categoryMatchesType = selectedCategory === "All" ||
-          (selectedCategory === "Hybrid" && clubModel.type === "Hybrid" && clubModel.category.toLowerCase().includes("hybrid")) ||
-          (selectedCategory === "Fairway Wood" && clubModel.type === "Fairway Wood" && clubModel.category.toLowerCase().includes("fairway wood")) ||
-          (selectedCategory === "Iron Set" && clubModel.type === "Iron Set" && clubModel.category.toLowerCase().includes("iron")) ||
-          (selectedCategory === "Wedge" && clubModel.type === "Wedge" && clubModel.category.toLowerCase().includes("wedge")) ||
-          (selectedCategory === "Driver" && clubModel.type === "Driver" && clubModel.category.toLowerCase().includes("driver")) ||
-          (selectedCategory === "Putter" && clubModel.type === "Putter" && clubModel.category.toLowerCase().includes("putter"));
-
-        if (!matchesCategory || !categoryMatchesType) return false;
-
+        // Sub-item filtering
         const matchesSubItem = selectedSubItem
           ? selectedCategory === "Hybrid"
             ? selectedSubItem === "Utility Iron"
-              ? clubModel.specificType === "Utility Iron"
-              : (() => {
-                  const selectedLoft = selectedSubItem ?? '';
-                  const parsedSelectedLoft = parseFloat(selectedLoft.split(" ")[0]);
-                  const clubLoft = clubModel.specificType?.replace('°', '') ?? '';
-                  const parsedClubLoft = parseFloat(clubLoft);
-                  return parsedClubLoft === parsedSelectedLoft;
-                })()
-            : selectedCategory === "Iron Set"
-            ? selectedSubSubItem
-              ? clubModel.subType === "Individual" && (clubModel.specificType ?? '').toLowerCase() === (selectedSubSubItem ?? '').toLowerCase()
-              : clubModel.subType === selectedSubItem
-            : (clubModel.specificType ?? '').toLowerCase() === (selectedSubItem ?? '').toLowerCase()
+              ? clubModel.specifictype === "Utility Iron"
+              : clubModel.variants.length > 0 && parseFloat(clubModel.variants[0].loft?.replace('°', '') || '0') === parseFloat(selectedSubItem.split(" ")[0])
+            : selectedCategory === "Fairway Wood"
+              ? clubModel.variants.length > 0 && clubModel.variants[0].loft === selectedSubItem // Adjust below
+              : selectedCategory === "Wedge"
+                ? clubModel.specifictype === selectedSubItem // e.g., "Gap Wedge"
+                : selectedCategory === "Iron Set"
+                  ? selectedSubSubItem
+                    ? clubModel.subtype === "Individual" && clubModel.specifictype === selectedSubSubItem
+                    : clubModel.subtype === selectedSubItem
+                  : true
           : true;
 
         const matchesSubSubItem = selectedSubSubItem && selectedCategory !== "Iron Set"
-          ? (clubModel.specificType ?? '').toLowerCase() === (selectedSubSubItem ?? '').toLowerCase()
+          ? clubModel.specifictype === selectedSubSubItem
           : true;
 
         const matchesSearch = debouncedSearchQuery
           ? clubModel.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-            clubModel.model.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-            clubModel.type.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+          clubModel.model.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          clubModel.type.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
           : true;
 
         const matchesHandedness = filterHandedness
-          ? clubModel.variants.some(variant => {
-              const handednessMatch = variant.description.match(/Handedness: (Right-Handed|Left-Handed)/i);
-              return handednessMatch && handednessMatch[1] === filterHandedness;
-            })
+          ? clubModel.variants.length > 0 && clubModel.variants.some(variant => {
+            const handednessMatch = variant.description?.match(/Handedness: (Right-Handed|Left-Handed)/i);
+            return handednessMatch && handednessMatch[1] === filterHandedness;
+          })
           : true;
 
         const matchesBrand = filterBrand
@@ -311,44 +327,35 @@ const App: React.FC = () => {
           : true;
 
         const matchesHandicapperLevel = filterHandicapperLevel
-          ? clubModel.handicapperLevel === filterHandicapperLevel
+          ? clubModel.handicapperlevel === filterHandicapperLevel
           : true;
 
-        const price = clubModel.variants[0].price;
+        const price = clubModel.variants.length > 0 ? clubModel.variants[0].price : 0;
         const minPrice = filterPriceMin ? parseFloat(filterPriceMin) : 0;
         const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : Infinity;
         const matchesPriceRange = price >= minPrice && price <= maxPrice;
 
         const matchesMyClubsGaps = filterByMyClubsGaps && recommendedLofts.length > 0
-          ? clubModel.variants.some(variant => {
-              const loft = parseFloat(variant.loft?.replace('°', '') || '0');
-              return recommendedLofts.some(recommendedLoft => loft >= recommendedLoft - 2 && loft <= recommendedLoft + 2);
-            })
+          ? clubModel.variants.length > 0 && clubModel.variants.some(variant => {
+            const loft = parseFloat(variant.loft?.replace('°', '') || '0');
+            return recommendedLofts.some(recommendedLoft => loft >= recommendedLoft - 2 && loft <= recommendedLoft + 2);
+          })
           : true;
 
-        const result = matchesCategory && categoryMatchesType && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesHandicapperLevel && matchesPriceRange && matchesMyClubsGaps;
-
-        console.log(`Club: ${clubModel.brand} ${clubModel.model} (Type: ${clubModel.type}, Category: ${clubModel.category}) - Matches:`, {
-          matchesCategory,
-          categoryMatchesType,
-          matchesSubItem,
-          matchesSubSubItem,
-          matchesSearch,
-          matchesHandedness,
-          matchesBrand,
-          matchesHandicapperLevel,
-          matchesPriceRange,
-          matchesMyClubsGaps,
-          result,
-        });
+        const result = matchesCategory && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesHandicapperLevel && matchesPriceRange && matchesMyClubsGaps;
 
         return result;
       })
       .sort((a, b) => {
+        const priceA = a.variants.length > 0 ? a.variants[0].price : 0;
+        const priceB = b.variants.length > 0 ? b.variants[0].price : 0;
+        const loftA = a.variants.length > 0 ? a.variants[0].loft : null;
+        const loftB = b.variants.length > 0 ? b.variants[0].loft : null;
+
         if (sortOption === 'price-asc') {
-          return a.variants[0].price - b.variants[0].price;
+          return priceA - priceB;
         } else if (sortOption === 'price-desc') {
-          return b.variants[0].price - a.variants[0].price;
+          return priceB - priceA;
         } else if (sortOption === 'brand') {
           return a.brand.localeCompare(b.brand);
         } else if (sortOption === 'loft') {
@@ -357,13 +364,11 @@ const App: React.FC = () => {
             const cleanedLoft = loft.replace('°', '').replace(' degrees', '').replace('degree', '').trim();
             return parseFloat(cleanedLoft) || Infinity;
           };
-          return getLoftValue(a.variants[0].loft) - getLoftValue(b.variants[0].loft);
+          return getLoftValue(loftA) - getLoftValue(loftB);
         }
         return 0;
       });
-  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption, filterByMyClubsGaps, recommendedLofts]);
-
-  // Pagination logic
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption, filterByMyClubsGaps, recommendedLofts, clubsData.clubs, loading]);  // Pagination logic
   const totalItems = filteredClubModels.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
@@ -385,7 +390,7 @@ const App: React.FC = () => {
   console.log("Filtered Clubs:", filteredClubModels);
   console.log("Paginated Clubs:", paginatedClubModels, `Page ${currentPage} of ${totalPages}`);
 
-  const handleAddToBag = (club: Club & { image_path?: string; handicapperLevel: string }) => {
+  const handleAddToBag = (club: Club & { image_path?: string; handicapperlevel: string }) => {
     if (selectedClubs.length >= 14) {
       toast.error("Cannot add more than 14 clubs to the bag.", {
         position: "top-right",
@@ -394,10 +399,10 @@ const App: React.FC = () => {
       return;
     }
     if (!selectedClubs.some(c => c.id === club.id)) {
-      const clubWithImage: Club & { image_path: string; handicapperLevel: string } = {
+      const clubWithImage: Club & { image_path: string; handicapperlevel: string } = {
         ...club,
         image_path: club.image_path ?? (
-          filteredClubModels.find(cm => 
+          filteredClubModels.find(cm =>
             cm.brand === club.brand && cm.model === club.model
           )?.image ? `club_images/${filteredClubModels.find(cm => cm.brand === club.brand && cm.model === club.model)!.image}.jpg` : "driver_images/placeholder.jpg"
         ),
@@ -421,16 +426,16 @@ const App: React.FC = () => {
     }
   };
 
-  const handleReplaceClub = (oldClubId: number, newClub: Club & { image_path?: string; handicapperLevel: string }) => {
+  const handleReplaceClub = (oldClubId: number, newClub: Club & { image_path?: string; handicapperlevel: string }) => {
     const oldClub = selectedClubs.find(c => c.id === oldClubId);
     if (!oldClub) return;
 
     setSelectedClubs(selectedClubs.filter(c => c.id !== oldClubId));
 
-    const clubWithImage: Club & { image_path: string; handicapperLevel: string } = {
+    const clubWithImage: Club & { image_path: string; handicapperlevel: string } = {
       ...newClub,
       image_path: newClub.image_path ?? (
-        filteredClubModels.find(cm => 
+        filteredClubModels.find(cm =>
           cm.brand === newClub.brand && cm.model === newClub.model
         )?.image ? `club_images/${filteredClubModels.find(cm => cm.brand === newClub.brand && cm.model === newClub.model)!.image}.jpg` : "driver_images/placeholder.jpg"
       ),
@@ -487,6 +492,14 @@ const App: React.FC = () => {
   };
 
   const totalPrice = selectedClubs.reduce((sum, club) => sum + club.price, 0);
+
+  if (loading) {
+    return <div className="text-center py-10">Loading clubs...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-10 text-red-600">{error}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -609,20 +622,18 @@ const App: React.FC = () => {
         </div>
         <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)]">
           <nav
-            className={`w-full md:w-64 bg-white md:h-[calc(100vh-64px)] md:sticky md:top-[64px] p-6 shadow-md flex-shrink-0 md:block overflow-y-auto z-50 ${
-              isCategorySidebarOpen ? "block" : "hidden md:block"
-            }`}
+            className={`w-full md:w-64 bg-white md:h-[calc(100vh-64px)] md:sticky md:top-[64px] p-6 shadow-md flex-shrink-0 md:block overflow-y-auto z-50 ${isCategorySidebarOpen ? "block" : "hidden md:block"
+              }`}
           >
             <ul className="mb-6">
               {categories.map(category => (
                 <li key={category.name} className="mb-2">
                   <div className="flex items-center justify-between">
                     <button
-                      className={`flex-1 text-left py-2 px-4 rounded-lg flex items-center transition ${
-                        selectedCategory === category.name
-                          ? "bg-gray-200 text-gray-800 font-semibold"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
+                      className={`flex-1 text-left py-2 px-4 rounded-lg flex items-center transition ${selectedCategory === category.name
+                        ? "bg-gray-200 text-gray-800 font-semibold"
+                        : "text-gray-600 hover:bg-gray-100"
+                        }`}
                       onClick={() => selectCategory(category.name)}
                     >
                       <svg
@@ -646,9 +657,8 @@ const App: React.FC = () => {
                         className="p-2"
                       >
                         <svg
-                          className={`w-4 h-4 transform transition-transform ${
-                            openCategories.includes(category.name) ? "rotate-180" : ""
-                          }`}
+                          className={`w-4 h-4 transform transition-transform ${openCategories.includes(category.name) ? "rotate-180" : ""
+                            }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -669,11 +679,10 @@ const App: React.FC = () => {
                         <li key={subItem.name}>
                           <div className="flex items-center justify-between">
                             <button
-                              className={`flex-1 text-left py-1 px-4 rounded-lg flex items-center transition ${
-                                selectedSubItem === subItem.filter
-                                  ? "bg-gray-200 text-gray-800 font-semibold"
-                                  : "text-gray-600 hover:bg-gray-100"
-                              }`}
+                              className={`flex-1 text-left py-1 px-4 rounded-lg flex items-center transition ${selectedSubItem === subItem.filter
+                                ? "bg-gray-200 text-gray-800 font-semibold"
+                                : "text-gray-600 hover:bg-gray-100"
+                                }`}
                               onClick={() => selectSubItem(category.name, subItem.filter)}
                             >
                               <span>{subItem.name}</span>
@@ -684,11 +693,10 @@ const App: React.FC = () => {
                                 className="p-2"
                               >
                                 <svg
-                                  className={`w-4 h-4 transform transition-transform ${
-                                    openCategories.includes(`${category.name}-${subItem.name}`)
-                                      ? "rotate-180"
-                                      : ""
-                                  }`}
+                                  className={`w-4 h-4 transform transition-transform ${openCategories.includes(`${category.name}-${subItem.name}`)
+                                    ? "rotate-180"
+                                    : ""
+                                    }`}
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -708,11 +716,10 @@ const App: React.FC = () => {
                               {subItem.subSubItems.map(subSubItem => (
                                 <li key={subSubItem.name}>
                                   <button
-                                    className={`w-full text-left py-1 px-4 rounded-lg flex items-center transition ${
-                                      selectedSubSubItem === subSubItem.filter
-                                        ? "bg-gray-200 text-gray-800 font-semibold"
-                                        : "text-gray-600 hover:bg-gray-100"
-                                    }`}
+                                    className={`w-full text-left py-1 px-4 rounded-lg flex items-center transition ${selectedSubSubItem === subSubItem.filter
+                                      ? "bg-gray-200 text-gray-800 font-semibold"
+                                      : "text-gray-600 hover:bg-gray-100"
+                                      }`}
                                     onClick={() =>
                                       selectSubSubItem(category.name, subItem.filter, subSubItem.filter)
                                     }
@@ -739,9 +746,8 @@ const App: React.FC = () => {
                   className="p-2"
                 >
                   <svg
-                    className={`w-4 h-4 transform transition-transform ${
-                      isSortFilterOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-4 h-4 transform transition-transform ${isSortFilterOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -788,21 +794,19 @@ const App: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Handedness</label>
                     <div className="flex gap-2">
                       <button
-                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${
-                          filterHandedness === "Right-Handed"
-                            ? "bg-green-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        } md:text-sm`}
+                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${filterHandedness === "Right-Handed"
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          } md:text-sm`}
                         onClick={() => setFilterHandedness(filterHandedness === "Right-Handed" ? "" : "Right-Handed")}
                       >
                         Right-Handed
                       </button>
                       <button
-                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${
-                          filterHandedness === "Left-Handed"
-                            ? "bg-green-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        } md:text-sm`}
+                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${filterHandedness === "Left-Handed"
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          } md:text-sm`}
                         onClick={() => setFilterHandedness(filterHandedness === "Left-Handed" ? "" : "Left-Handed")}
                       >
                         Left-Handed
@@ -812,14 +816,13 @@ const App: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Handicapper Level</label>
                     <div className="flex gap-2 flex-wrap">
-                      {handicapperLevelOptions.map(level => (
+                      {handicapperlevelOptions.map(level => (
                         <button
                           key={level}
-                          className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${
-                            filterHandicapperLevel === level
-                              ? "bg-green-600 text-white"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          } md:text-sm`}
+                          className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${filterHandicapperLevel === level
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            } md:text-sm`}
                           onClick={() => setFilterHandicapperLevel(filterHandicapperLevel === level ? "" : level)}
                         >
                           {level}
@@ -851,19 +854,18 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setFilterByMyClubsGaps(!filterByMyClubsGaps)}
                       disabled={recommendedLofts.length === 0}
-                      className={`w-full py-3 px-4 rounded-md text-base font-medium transition-colors ${
-                        recommendedLofts.length === 0
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : filterByMyClubsGaps
+                      className={`w-full py-3 px-4 rounded-md text-base font-medium transition-colors ${recommendedLofts.length === 0
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : filterByMyClubsGaps
                           ? "bg-green-600 text-white"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      } md:text-sm`}
+                        } md:text-sm`}
                     >
                       {recommendedLofts.length === 0
                         ? "No Lofts Entered"
                         : filterByMyClubsGaps
-                        ? "Filtering by Gaps"
-                        : "Filter by Gaps"}
+                          ? "Filtering by Gaps"
+                          : "Filter by Gaps"}
                     </button>
                   </div>
                   <button
@@ -885,9 +887,8 @@ const App: React.FC = () => {
             </div>
           </nav>
           <main
-            className={`flex-1 p-6 transition-all duration-300 ${
-              isBagPinned ? 'md:mr-80' : ''
-            }`}
+            className={`flex-1 p-6 transition-all duration-300 ${isBagPinned ? 'md:mr-80' : ''
+              }`}
           >
             <div className="max-w-7xl mx-auto px-4">
               {/* Page Size Selector and Sticky Search Bar */}
@@ -938,8 +939,8 @@ const App: React.FC = () => {
               </div>
 
               {/* Club List */}
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(14.5rem,1fr))] gap-6">
-                {paginatedClubModels.length > 0 ? (
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-6">     
+                  {paginatedClubModels.length > 0 ? (
                   paginatedClubModels.map(clubModel => {
                     if (!clubModel.variants || clubModel.variants.length === 0) {
                       console.warn(`No variants found for ${clubModel.brand} ${clubModel.model}`);
@@ -948,16 +949,17 @@ const App: React.FC = () => {
                     const club = {
                       ...clubModel.variants[0],
                       type: clubModel.type,
-                      subType: clubModel.subType,
-                      specificType: clubModel.specificType,
+                      subtype: clubModel.subtype,
+                      specifictype: clubModel.specifictype,
                       brand: clubModel.brand,
                       model: clubModel.model,
-                      handicapperLevel: clubModel.handicapperLevel,
+                      handicapperlevel: clubModel.handicapperlevel,
                     };
                     return (
                       <ClubCard
                         key={`${clubModel.brand}-${clubModel.model}`}
                         club={club}
+                        clubModel={clubModel} // Pass the full ClubModel
                         isSelected={selectedClubs.some(c => c.id === clubModel.variants[0].id)}
                         onSelect={() => handleAddToBag(club)}
                         onDeselect={() => handleRemoveFromBag(clubModel.variants[0].id)}
@@ -981,11 +983,10 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
-                        currentPage === 1
-                          ? "text-gray-400 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-green-50 hover:text-green-700"
-                      }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${currentPage === 1
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-gray-600 hover:bg-green-50 hover:text-green-700"
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -1010,11 +1011,10 @@ const App: React.FC = () => {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
-                          currentPage === page
-                            ? "bg-green-600 text-white shadow-inner"
-                            : "text-gray-600 hover:bg-green-50 hover:text-green-700"
-                        }`}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${currentPage === page
+                          ? "bg-green-600 text-white shadow-inner"
+                          : "text-gray-600 hover:bg-green-50 hover:text-green-700"
+                          }`}
                       >
                         {page}
                       </button>
@@ -1037,11 +1037,10 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
-                        currentPage === totalPages
-                          ? "text-gray-400 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-green-50 hover:text-green-700"
-                      }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${currentPage === totalPages
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-gray-600 hover:bg-green-50 hover:text-green-700"
+                        }`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -1061,7 +1060,7 @@ const App: React.FC = () => {
           onPinToggle={() => setIsBagPinned(!isBagPinned)}
           onOpenChange={setIsBagSidebarOpen}
           defaultOpen={selectedClubs.length > 0 || isBagPinned}
-          clubsData={typedClubsData.clubs}
+          clubsData={clubsData.clubs}
         />
       </div>
       <ClubDetailModal

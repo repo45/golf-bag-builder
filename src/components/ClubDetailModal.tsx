@@ -4,12 +4,12 @@ import { Club, ClubModel } from "../types/club";
 interface ClubDetailModalProps {
   clubModel: ClubModel | null;
   variant: Club | null;
-  selectedClubs: (Club & { image_path: string; handicapperLevel: string })[];
+  selectedClubs: (Club & { image_path: string; handicapperlevel: string })[];
   imageSrc: string;
   onClose: () => void;
-  onAddToBag: (club: Club & { image_path?: string; handicapperLevel: string }) => void;
+  onAddToBag: (club: Club & { image_path?: string; handicapperlevel: string }) => void;
   onRemove: (clubId: number) => void;
-  onReplace: (oldClubId: number, newClub: Club & { image_path?: string; handicapperLevel: string }) => void; // New prop for replacing
+  onReplace: (oldClubId: number, newClub: Club & { image_path?: string; handicapperlevel: string }) => void;
   onSelectVariant: (club: Club) => void;
   isSelected: boolean;
   isBagFull: boolean;
@@ -43,20 +43,22 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
 
   if (!clubModel || !variant) return null;
 
-  // Find the cheapest price for the selected variant
-  const cheapestPrice = Math.min(...variant.prices.map(p => p.price));
+  // Calculate the cheapest price among all variants and find the cheapest variant
+  const allPrices = clubModel.variants.map(v => v.price);
+  const cheapestPriceAmongVariants = allPrices.length > 0 ? Math.min(...allPrices) : variant.price;
+  const cheapestVariant = clubModel.variants.find(v => v.price === cheapestPriceAmongVariants) || variant;
 
   const handleAddToBag = () => {
     if (!isBagFull && !isSelected) {
       const fullClub = {
         ...variant,
         type: clubModel.type,
-        subType: clubModel.subType,
-        specificType: clubModel.specificType,
+        subtype: clubModel.subtype,
+        specifictype: clubModel.specifictype,
         brand: clubModel.brand,
         model: clubModel.model,
         image_path: `club_images/${clubModel.image}.jpg`,
-        handicapperLevel: clubModel.handicapperLevel,
+        handicapperlevel: clubModel.handicapperlevel,
       };
       onAddToBag(fullClub);
     }
@@ -67,12 +69,12 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
       const fullClub = {
         ...v,
         type: clubModel.type,
-        subType: clubModel.subType,
-        specificType: clubModel.specificType,
+        subtype: clubModel.subtype,
+        specifictype: clubModel.specifictype,
         brand: clubModel.brand,
         model: clubModel.model,
         image_path: `club_images/${clubModel.image}.jpg`,
-        handicapperLevel: clubModel.handicapperLevel,
+        handicapperlevel: clubModel.handicapperlevel,
       };
       onAddToBag(fullClub);
     }
@@ -82,12 +84,12 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
     const newClub = {
       ...newVariant,
       type: clubModel.type,
-      subType: clubModel.subType,
-      specificType: clubModel.specificType,
+      subtype: clubModel.subtype,
+      specifictype: clubModel.specifictype,
       brand: clubModel.brand,
       model: clubModel.model,
       image_path: `club_images/${clubModel.image}.jpg`,
-      handicapperLevel: clubModel.handicapperLevel,
+      handicapperlevel: clubModel.handicapperlevel,
     };
     onReplace(oldClubId, newClub);
     onSelectVariant(newVariant); // Update the displayed variant in the modal
@@ -97,7 +99,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
     onRemove(variant.id);
   };
 
-  // Determine badge color and icon based on handicapperLevel
+  // Determine badge color and icon based on handicapperlevel
   const getHandicapperLevelStyles = (level: string) => {
     switch (level) {
       case "Low Handicapper":
@@ -123,7 +125,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
     }
   };
 
-  const { bgColor, icon } = getHandicapperLevelStyles(clubModel.handicapperLevel);
+  const { bgColor, icon } = getHandicapperLevelStyles(clubModel.handicapperlevel);
 
   return (
     <div
@@ -160,8 +162,8 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
         </h2>
         <p className="text-gray-600 mb-4">
           {variant.type}{" "}
-          {variant.subType ? `(${variant.subType})` : ""}{" "}
-          {variant.specificType ? `- ${variant.specificType}` : ""}
+          {variant.subtype ? `(${variant.subtype})` : ""}{" "}
+          {variant.specifictype ? `- ${variant.specifictype}` : ""}
         </p>
         <div className="relative w-[18rem] h-[12rem] mx-auto">
           {isImageLoading && (
@@ -194,55 +196,43 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {variant.prices.map((price, index) => (
-                  <tr
-                    key={index}
-                    className="border-b hover:bg-gray-50"
-                  >
-                    <td className="px-4 py-2">
-                      {price.retailer}
-                    </td>
-                    <td
-                      className={`px-4 py-2 ${
-                        price.price === cheapestPrice
-                          ? "text-green-600 font-semibold"
-                          : ""
-                      }`}
-                    >
-                      £{price.price.toFixed(2)}
-                      {price.price === cheapestPrice && (
-                        <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                          Cheapest
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <a
-                        href={price.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        Buy Now
-                      </a>
-                    </td>
-                  </tr>
-                ))}
+                <tr className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-2">{cheapestVariant.source || "Unknown Retailer"}</td>
+                  <td className="px-4 py-2 text-green-600 font-semibold">
+                    £{cheapestVariant.price.toFixed(2)}
+                    <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                      Cheapest
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">
+                    <a href={cheapestVariant.url || `https://${cheapestVariant.source || "unknown"}.com`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Buy Now
+                    </a>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            Cheapest Price Among Variants
+          </h3>
+          <p className="text-lg font-semibold text-green-600">
+            £{cheapestPriceAmongVariants.toFixed(2)}
+          </p>
+        </div>
         <p className="text-sm text-gray-600">
           Loft: {variant.loft || "N/A"}
         </p>
-        {variant.shaftMaterial && (
+        {variant.shaftmaterial && (
           <p className="text-sm text-gray-600">
-            Shaft Material: {variant.shaftMaterial}
+            Shaft Material: {variant.shaftmaterial}
           </p>
         )}
-        {variant.setMakeup && (
+        {variant.setmakeup && (
           <p className="text-sm text-gray-600">
-            Set Makeup: {variant.setMakeup}
+            Set Makeup: {variant.setmakeup}
           </p>
         )}
         {variant.length && (
@@ -256,20 +246,18 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
           </p>
         )}
         <p className="text-lg font-semibold text-green-600 mt-2">
-          £{variant.price.toFixed(2)}
+          Selected Variant Price: £{variant.price.toFixed(2)}
         </p>
         <div className="mt-2">
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-medium ${bgColor}`}>
             {icon && <span className="mr-1">{icon}</span>}
-            Handicapper Level: {clubModel.handicapperLevel}
+            Handicapper Level: {clubModel.handicapperlevel}
           </span>
         </div>
         <p className="text-sm text-gray-600 mt-2">
           Category: {clubModel.category}
         </p>
-        <p className="text-gray-600 mt-4">
-          {variant.description}
-        </p>
+        <p className="text-gray-600 mt-4">{variant.description}</p>
 
         {/* Add/Remove Button for Selected Variant */}
         <div className="mt-6 flex space-x-4">
@@ -334,8 +322,8 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                     <td className="px-2 py-2">{v.description.match(/Handedness: ([^\s,]+)/)?.[1] || "N/A"}</td>
                     <td className="px-2 py-2">{v.description.match(/Flex: ([^\s,]+)/)?.[1] || "N/A"}</td>
                     <td className="px-2 py-2">{v.description.match(/Condition: ([^\s,]+)/)?.[1] || "N/A"}</td>
-                    <td className="px-2 py-2">{v.shaftMaterial || "N/A"}</td>
-                    <td className="px-2 py-2">{v.setMakeup || "N/A"}</td>
+                    <td className="px-2 py-2">{v.shaftmaterial || "N/A"}</td>
+                    <td className="px-2 py-2">{v.setmakeup || "N/A"}</td>
                     <td className="px-2 py-2">{v.length || "N/A"}</td>
                     <td className="px-2 py-2">{v.bounce || "N/A"}</td>
                     <td className="px-2 py-2">£{v.price.toFixed(2)}</td>

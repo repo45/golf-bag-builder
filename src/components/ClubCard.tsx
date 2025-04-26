@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Club } from "../types/club";
+import { Club, ClubModel } from "../types/club";
 
 interface ClubCardProps {
   club: Club & {
-    handicapperLevel: string;
+    handicapperlevel: string;
   };
+  clubModel: ClubModel; // Add clubModel prop
   isSelected: boolean;
   onSelect: () => void;
   onDeselect: () => void;
@@ -15,6 +16,7 @@ interface ClubCardProps {
 
 const ClubCard: React.FC<ClubCardProps> = ({
   club,
+  clubModel,
   isSelected,
   onSelect,
   onDeselect,
@@ -30,12 +32,11 @@ const ClubCard: React.FC<ClubCardProps> = ({
     onViewDetails();
   };
 
-  // Calculate price range for display
-  const minPrice = Math.min(...club.prices.map(p => p.price));
-  const maxPrice = Math.max(...club.prices.map(p => p.price));
-  const priceRange = minPrice === maxPrice
-    ? `£${minPrice.toFixed(2)}`
-    : `£${minPrice.toFixed(2)} - £${maxPrice.toFixed(2)}`;
+  // Calculate the cheapest price among all variants using the price field
+  const cheapestPrice = clubModel.variants.length > 0
+    ? Math.min(...clubModel.variants.map(v => v.price))
+    : club.price; // Fallback to the single price if no variants
+  const priceDisplay = `£${cheapestPrice.toFixed(2)}`;
 
   const handleAddClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -51,7 +52,7 @@ const ClubCard: React.FC<ClubCardProps> = ({
     onDeselect();
   };
 
-  // Determine badge color and icon based on handicapperLevel
+  // Determine badge color and icon based on handicapperlevel
   const getHandicapperLevelStyles = (level: string) => {
     switch (level) {
       case "Low Handicapper":
@@ -77,17 +78,14 @@ const ClubCard: React.FC<ClubCardProps> = ({
     }
   };
 
-  const { bgColor, icon } = getHandicapperLevelStyles(club.handicapperLevel);
+  const { bgColor, icon } = getHandicapperLevelStyles(club.handicapperlevel);
 
-  // Determine the type label: use specificType if available, otherwise fall back to type
-  const typeLabel = club.specificType || club.type;
+  // Determine the type label: use specifictype if available, otherwise fall back to type
+  const typeLabel = club.specifictype || club.type;
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg">
-      <div
-        onClick={handleViewDetails}
-        className="cursor-pointer"
-      >
+      <div onClick={handleViewDetails} className="cursor-pointer">
         <div className="relative w-[9.375rem] h-[6.25rem] mx-auto mt-2">
           {isImageLoading && (
             <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
@@ -115,19 +113,19 @@ const ClubCard: React.FC<ClubCardProps> = ({
           <div className="mt-1 flex justify-center">
             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
               {icon && <span className="mr-1">{icon}</span>}
-              {club.handicapperLevel}
+              {club.handicapperlevel}
             </span>
           </div>
           <p className="text-sm font-semibold text-gray-800 mt-1">
-            {priceRange}
+            {priceDisplay}
           </p>
           <button
             className={`group flex h-7 w-full rounded bg-gray-100 items-center justify-between rounded-md text-xs text-gray-900 transition-colors hover:bg-green-600 hover:text-white focus:bg-green-600 focus:text-white focus:outline-0 md:h-9 md:text-sm mt-2 ${
               isSelected
                 ? "bg-green-600 text-white hover:bg-green-700"
                 : isBagFull
-                  ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 hover:text-gray-900"
-                  : ""
+                ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 hover:text-gray-900"
+                : ""
             }`}
             onClick={isSelected ? handleRemoveClick : handleAddClick}
             disabled={isBagFull && !isSelected}
@@ -146,11 +144,7 @@ const ClubCard: React.FC<ClubCardProps> = ({
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </span>
           </button>
