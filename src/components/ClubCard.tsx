@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Club } from "../types/club";
 
 interface ClubCardProps {
-  club: Club;
+  club: Club & {
+    handicapperLevel: string;
+  };
   isSelected: boolean;
   onSelect: () => void;
   onDeselect: () => void;
@@ -20,7 +22,6 @@ const ClubCard: React.FC<ClubCardProps> = ({
   isBagFull,
   imageSrc,
 }) => {
-  // Debug: Log the image source
   console.log(`ClubCard ImageSrc for ${club.brand} ${club.model}: ${imageSrc}`);
 
   const [isImageLoading, setIsImageLoading] = useState(true);
@@ -50,6 +51,37 @@ const ClubCard: React.FC<ClubCardProps> = ({
     onDeselect();
   };
 
+  // Determine badge color and icon based on handicapperLevel
+  const getHandicapperLevelStyles = (level: string) => {
+    switch (level) {
+      case "Low Handicapper":
+        return {
+          bgColor: "bg-emerald-100 text-emerald-800",
+          icon: "★",
+        };
+      case "Medium Handicapper":
+        return {
+          bgColor: "bg-sky-100 text-sky-800",
+          icon: "➔",
+        };
+      case "High Handicapper":
+        return {
+          bgColor: "bg-amber-100 text-amber-800",
+          icon: "🚩",
+        };
+      default:
+        return {
+          bgColor: "bg-gray-100 text-gray-800",
+          icon: "",
+        };
+    }
+  };
+
+  const { bgColor, icon } = getHandicapperLevelStyles(club.handicapperLevel);
+
+  // Determine the type label: use specificType if available, otherwise fall back to type
+  const typeLabel = club.specificType || club.type;
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg">
       <div
@@ -77,6 +109,15 @@ const ClubCard: React.FC<ClubCardProps> = ({
           <h3 className="text-sm text-gray-800 truncate">
             {club.brand} {club.model}
           </h3>
+          <p className="text-xs text-gray-600 mt-1">
+            {typeLabel} - {club.loft || 'N/A'}
+          </p>
+          <div className="mt-1 flex justify-center">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
+              {icon && <span className="mr-1">{icon}</span>}
+              {club.handicapperLevel}
+            </span>
+          </div>
           <p className="text-sm font-semibold text-gray-800 mt-1">
             {priceRange}
           </p>

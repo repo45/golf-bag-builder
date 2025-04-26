@@ -4,11 +4,12 @@ import { Club, ClubModel } from "../types/club";
 interface ClubDetailModalProps {
   clubModel: ClubModel | null;
   variant: Club | null;
-  selectedClubs: Club[];
+  selectedClubs: (Club & { image_path: string; handicapperLevel: string })[];
   imageSrc: string;
   onClose: () => void;
-  onAddToBag: (club: Club) => void;
+  onAddToBag: (club: Club & { image_path?: string; handicapperLevel: string }) => void;
   onRemove: (clubId: number) => void;
+  onReplace: (oldClubId: number, newClub: Club & { image_path?: string; handicapperLevel: string }) => void; // New prop for replacing
   onSelectVariant: (club: Club) => void;
   isSelected: boolean;
   isBagFull: boolean;
@@ -22,6 +23,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
   onClose,
   onAddToBag,
   onRemove,
+  onReplace,
   onSelectVariant,
   isSelected,
   isBagFull,
@@ -46,13 +48,82 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
 
   const handleAddToBag = () => {
     if (!isBagFull && !isSelected) {
-      onAddToBag(variant);
+      const fullClub = {
+        ...variant,
+        type: clubModel.type,
+        subType: clubModel.subType,
+        specificType: clubModel.specificType,
+        brand: clubModel.brand,
+        model: clubModel.model,
+        image_path: `club_images/${clubModel.image}.jpg`,
+        handicapperLevel: clubModel.handicapperLevel,
+      };
+      onAddToBag(fullClub);
     }
+  };
+
+  const handleAddVariantToBag = (v: Club) => {
+    if (!isBagFull && !selectedClubs.some(c => c.id === v.id)) {
+      const fullClub = {
+        ...v,
+        type: clubModel.type,
+        subType: clubModel.subType,
+        specificType: clubModel.specificType,
+        brand: clubModel.brand,
+        model: clubModel.model,
+        image_path: `club_images/${clubModel.image}.jpg`,
+        handicapperLevel: clubModel.handicapperLevel,
+      };
+      onAddToBag(fullClub);
+    }
+  };
+
+  const handleReplaceVariant = (oldClubId: number, newVariant: Club) => {
+    const newClub = {
+      ...newVariant,
+      type: clubModel.type,
+      subType: clubModel.subType,
+      specificType: clubModel.specificType,
+      brand: clubModel.brand,
+      model: clubModel.model,
+      image_path: `club_images/${clubModel.image}.jpg`,
+      handicapperLevel: clubModel.handicapperLevel,
+    };
+    onReplace(oldClubId, newClub);
+    onSelectVariant(newVariant); // Update the displayed variant in the modal
   };
 
   const handleRemoveFromBag = () => {
     onRemove(variant.id);
   };
+
+  // Determine badge color and icon based on handicapperLevel
+  const getHandicapperLevelStyles = (level: string) => {
+    switch (level) {
+      case "Low Handicapper":
+        return {
+          bgColor: "bg-emerald-100 text-emerald-800",
+          icon: "★",
+        };
+      case "Medium Handicapper":
+        return {
+          bgColor: "bg-sky-100 text-sky-800",
+          icon: "➔",
+        };
+      case "High Handicapper":
+        return {
+          bgColor: "bg-amber-100 text-amber-800",
+          icon: "🚩",
+        };
+      default:
+        return {
+          bgColor: "bg-gray-100 text-gray-800",
+          icon: "",
+        };
+    }
+  };
+
+  const { bgColor, icon } = getHandicapperLevelStyles(clubModel.handicapperLevel);
 
   return (
     <div
@@ -188,27 +259,14 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
           £{variant.price.toFixed(2)}
         </p>
         <div className="mt-2">
-          <p className="text-sm text-gray-600">
-            Forgiveness: {variant.forgivenessRating}/10
-          </p>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div
-              className="bg-blue-600 h-2.5 rounded-full"
-              style={{ width: `${variant.forgivenessRating * 10}%` }}
-            ></div>
-          </div>
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-medium ${bgColor}`}>
+            {icon && <span className="mr-1">{icon}</span>}
+            Handicapper Level: {clubModel.handicapperLevel}
+          </span>
         </div>
-        <div className="mt-2">
-          <p className="text-sm text-gray-600">
-            Difficulty: {variant.difficultyRating}/10
-          </p>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div
-              className="bg-red-600 h-2.5 rounded-full"
-              style={{ width: `${variant.difficultyRating * 10}%` }}
-            ></div>
-          </div>
-        </div>
+        <p className="text-sm text-gray-600 mt-2">
+          Category: {clubModel.category}
+        </p>
         <p className="text-gray-600 mt-4">
           {variant.description}
         </p>
@@ -286,6 +344,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                         <button
                           className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition"
                           onClick={() => onSelectVariant(v)}
+                          title="View Details"
                         >
                           <svg
                             className="w-5 h-5"
@@ -307,29 +366,52 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                             />
                           </svg>
                         </button>
-                        <button
-                          className={`text-green-600 hover:text-green-800 transform hover:scale-110 transition ${
-                            isBagFull || selectedClubs.some(c => c.id === v.id)
-                              ? "opacity-50 cursor-not-allowed"
-                              : ""
-                          }`}
-                          onClick={() => onAddToBag(v)}
-                          disabled={isBagFull || selectedClubs.some(c => c.id === v.id)}
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        {isSelected && v.id !== variant.id ? (
+                          <button
+                            className="text-yellow-600 hover:text-yellow-800 transform hover:scale-110 transition"
+                            onClick={() => handleReplaceVariant(variant.id, v)}
+                            title="Replace in Bag"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 4v16m8-8H4"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M8 7h12m0 0l-4-4m4 4l-4 4m-12 1h12m0 0l-4 4m4-4l-4-4"
+                              />
+                            </svg>
+                          </button>
+                        ) : (
+                          <button
+                            className={`text-green-600 hover:text-green-800 transform hover:scale-110 transition ${
+                              isBagFull || selectedClubs.some(c => c.id === v.id)
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                            onClick={() => handleAddVariantToBag(v)}
+                            disabled={isBagFull || selectedClubs.some(c => c.id === v.id)}
+                            title="Add to Bag"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 4v16m8-8H4"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

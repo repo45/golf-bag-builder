@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Club, ClubModel } from '../types/club';
 
 interface SelectedClubsSidebarProps {
-  selectedClubs: (Club & { image_path: string })[];
+  selectedClubs: (Club & { image_path: string; handicapperLevel: string })[];
   onRemove: (clubId: number) => void;
-  onAdd: (club: Club) => void;
+  onAdd: (club: Club & { image_path: string; handicapperLevel: string }) => void;
   isPinned: boolean;
   onPinToggle: () => void;
   defaultOpen: boolean;
-  clubsData: ClubModel[]; // New prop for club data
+  clubsData: ClubModel[];
 }
 
 const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
@@ -18,7 +18,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
   isPinned,
   onPinToggle,
   defaultOpen,
-  clubsData, // Receive clubsData as a prop
+  clubsData,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(defaultOpen);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(true);
@@ -33,47 +33,50 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
   useEffect(() => {
     console.log('Selected Clubs in Sidebar:', selectedClubs);
     selectedClubs.forEach(club => {
-      console.log(`Club ID: ${club.id}, Image Path: /${club.image_path}, Name: ${club.brand} ${club.model}, Loft: ${club.loft}`);
+      console.log(`Club ID: ${club.id}, Image Path: /${club.image_path}, Name: ${club.brand} ${club.model}, Loft: ${club.loft || 'N/A'}, Handicapper Level: ${club.handicapperLevel}`);
     });
   }, [selectedClubs]);
 
   const totalPrice = selectedClubs.reduce((sum, club) => sum + club.price, 0);
 
-  const getLoftValue = (loft: string): number => {
+  const getLoftValue = (loft: string | null): number => {
     if (!loft || loft === 'N/A') {
       console.log(`Invalid loft value: ${loft}`);
       return Infinity;
     }
-    const cleanedLoft = loft
-      .replace('°', '')
-      .replace(' degrees', '')
-      .replace('degree', '')
-      .trim();
+    // Extract numeric part (e.g., "10.0 degrees" -> "10.0")
+    const numericMatch = loft.match(/\d+(\.\d+)?/);
+    if (!numericMatch) {
+      console.log(`Failed to extract numeric loft from: ${loft}`);
+      return Infinity;
+    }
+    const numericLoft = numericMatch[0]; // e.g., "10.0"
+    const cleanedLoft = numericLoft.trim();
     const loftValue = parseFloat(cleanedLoft);
     if (isNaN(loftValue)) {
-      console.log(`Failed to parse loft: ${loft}, Cleaned: ${cleanedLoft}`);
+      console.log(`Failed to parse loft: ${loft}, Extracted: ${cleanedLoft}`);
       return Infinity;
     }
     return loftValue;
   };
 
-  const sortedClubs = [...selectedClubs].sort((a: Club & { image_path: string }, b: Club & { image_path: string }) => {
+  const sortedClubs = [...selectedClubs].sort((a: Club & { image_path: string; handicapperLevel: string }, b: Club & { image_path: string; handicapperLevel: string }) => {
     const order = ['Driver', 'Fairway Wood', 'Hybrid', 'Iron Set', 'Wedge', 'Putter'];
     const typeDiff = order.indexOf(a.type) - order.indexOf(b.type);
     if (typeDiff !== 0) return typeDiff;
 
     if (a.type === 'Fairway Wood' && b.type === 'Fairway Wood') {
       const fairwayOrder = ['3 Wood', '5 Wood', '7 Wood', '9 Wood', '11 Wood'];
-      const aFairwayType = a.specificType || '';
-      const bFairwayType = b.specificType || '';
+      const aFairwayType = a.specificType ?? '';
+      const bFairwayType = b.specificType ?? '';
       const aIndex = fairwayOrder.indexOf(aFairwayType);
       const bIndex = fairwayOrder.indexOf(bFairwayType);
       if (aIndex !== bIndex) return aIndex - bIndex;
     }
 
     if (a.type === 'Iron Set' && b.type === 'Iron Set') {
-      const aSpecific = a.specificType || '';
-      const bSpecific = b.specificType || '';
+      const aSpecific = a.specificType ?? '';
+      const bSpecific = b.specificType ?? '';
       const aNum = aSpecific.match(/\d+/) ? parseInt(aSpecific.match(/\d+/)![0]) : Infinity;
       const bNum = bSpecific.match(/\d+/) ? parseInt(bSpecific.match(/\d+/)![0]) : Infinity;
       if (aNum !== bNum) return aNum - bNum;
@@ -81,8 +84,8 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
 
     if (a.type === 'Wedge' && b.type === 'Wedge') {
       const wedgeOrder = ['Pitching Wedge', 'Gap Wedge', 'Sand Wedge', 'Lob Wedge'];
-      const aWedgeType = a.specificType || '';
-      const bWedgeType = b.specificType || '';
+      const aWedgeType = a.specificType ?? '';
+      const bWedgeType = b.specificType ?? '';
       const aIndex = wedgeOrder.indexOf(aWedgeType);
       const bIndex = wedgeOrder.indexOf(bWedgeType);
       if (aIndex !== bIndex) return aIndex - bIndex;
@@ -93,10 +96,11 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
 
   console.log('Sorted Clubs for Gapping Analysis:', sortedClubs.map(club => ({
     type: club.type,
-    specificType: club.specificType,
-    loft: club.loft,
+    specificType: club.specificType ?? 'N/A',
+    loft: club.loft ?? 'N/A',
     brand: club.brand,
-    model: club.model
+    model: club.model,
+    handicapperLevel: club.handicapperLevel,
   })));
 
   const gaps: { index: number; gap: number; recommendedLoft: number }[] = [];
@@ -112,7 +116,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
     const currentLoft = getLoftValue(currentClub.loft);
     const nextLoft = getLoftValue(nextClub.loft);
     console.log(
-      `Analyzing gap between ${currentClub.type} (${currentClub.specificType || ''}) (Loft: ${currentClub.loft}, Value: ${currentLoft}) and ${nextClub.type} (${nextClub.specificType || ''}) (Loft: ${nextClub.loft}, Value: ${nextLoft})`
+      `Analyzing gap between ${currentClub.type} (${currentClub.specificType ?? ''}) (Loft: ${currentClub.loft ?? 'N/A'}, Value: ${currentLoft}) and ${nextClub.type} (${nextClub.specificType ?? ''}) (Loft: ${nextClub.loft ?? 'N/A'}, Value: ${nextLoft})`
     );
 
     if (currentLoft === Infinity || nextLoft === Infinity) {
@@ -141,7 +145,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
       const targetLoft = gap.recommendedLoft;
       console.log(`Looking for club to fill loft gap at ${targetLoft.toFixed(1)}°`);
 
-      let potentialClubs = clubsData // Use clubsData prop instead of typedClubsData
+      let potentialClubs = clubsData
         .flatMap((clubModel: ClubModel) => 
           clubModel.variants.map((variant: Club) => ({
             ...variant,
@@ -150,10 +154,11 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
             specificType: clubModel.specificType,
             brand: clubModel.brand,
             model: clubModel.model,
-            image_path: `club_images/${clubModel.image}.jpg`,
+            handicapperLevel: clubModel.handicapperLevel,
+            image_path: `club_images/${clubModel.image}.jpg`, // Ensure image_path is set
           }))
         )
-        .filter((club: Club & { image_path: string }) => {
+        .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
           const currentClubType = sortedClubs[gap.index].type;
           const nextClubType = sortedClubs[gap.index + 1].type;
           if (currentClubType === 'Driver' && nextClubType === 'Fairway Wood') {
@@ -169,16 +174,16 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
           }
           return false;
         })
-        .filter((club: Club & { image_path: string }) => {
+        .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
           const loft = getLoftValue(club.loft);
-          const withinRange = loft >= targetLoft - 2 && loft <= targetLoft + 2;
+          const withinNarrowRange = loft >= targetLoft - 2 && loft <= targetLoft + 2;
           const isDuplicateLoft = existingLofts.includes(loft);
           console.log(
-            `Checking ${club.type} (${club.specificType || ''}) (${club.brand} ${club.model}, Loft: ${club.loft}, Value: ${loft}) - Within Range (±2°): ${withinRange}, Is Duplicate Loft: ${isDuplicateLoft}`
+            `Checking ${club.type} (${club.specificType ?? ''}) (${club.brand} ${club.model}, Loft: ${club.loft ?? 'N/A'}, Value: ${loft}) - Within Narrow Range (±2°): ${withinNarrowRange}, Is Duplicate Loft: ${isDuplicateLoft}`
           );
-          return withinRange && !isDuplicateLoft;
+          return withinNarrowRange && !isDuplicateLoft;
         })
-        .sort((a: Club & { image_path: string }, b: Club & { image_path: string }) => {
+        .sort((a: Club & { image_path: string; handicapperLevel: string }, b: Club & { image_path: string; handicapperLevel: string }) => {
           const loftDiffA = Math.abs(getLoftValue(a.loft) - targetLoft);
           const loftDiffB = Math.abs(getLoftValue(b.loft) - targetLoft);
           return loftDiffA - loftDiffB;
@@ -188,7 +193,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
 
       if (!recommendedClub) {
         console.log(`No club found within ±2° of ${targetLoft.toFixed(1)}°, expanding search to ±7°`);
-        potentialClubs = clubsData // Use clubsData prop
+        potentialClubs = clubsData
           .flatMap((clubModel: ClubModel) => 
             clubModel.variants.map((variant: Club) => ({
               ...variant,
@@ -197,10 +202,11 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
               specificType: clubModel.specificType,
               brand: clubModel.brand,
               model: clubModel.model,
-              image_path: `club_images/${clubModel.image}.jpg`,
+              handicapperLevel: clubModel.handicapperLevel,
+              image_path: `club_images/${clubModel.image}.jpg`, // Ensure image_path is set
             }))
           )
-          .filter((club: Club & { image_path: string }) => {
+          .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
             const currentClubType = sortedClubs[gap.index].type;
             const nextClubType = sortedClubs[gap.index + 1].type;
             if (currentClubType === 'Driver' && nextClubType === 'Fairway Wood') {
@@ -216,16 +222,16 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
             }
             return false;
           })
-          .filter((club: Club & { image_path: string }) => {
+          .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
             const loft = getLoftValue(club.loft);
             const withinBroaderRange = loft >= targetLoft - 7 && loft <= targetLoft + 7;
             const isDuplicateLoft = existingLofts.includes(loft);
             console.log(
-              `Checking ${club.type} (${club.specificType || ''}) (${club.brand} ${club.model}, Loft: ${club.loft}, Value: ${loft}) - Within Broader Range (±7°): ${withinBroaderRange}, Is Duplicate Loft: ${isDuplicateLoft}`
+              `Checking ${club.type} (${club.specificType ?? ''}) (${club.brand} ${club.model}, Loft: ${club.loft ?? 'N/A'}, Value: ${loft}) - Within Broader Range (±7°): ${withinBroaderRange}, Is Duplicate Loft: ${isDuplicateLoft}`
             );
             return withinBroaderRange && !isDuplicateLoft;
           })
-          .sort((a: Club & { image_path: string }, b: Club & { image_path: string }) => {
+          .sort((a: Club & { image_path: string; handicapperLevel: string }, b: Club & { image_path: string; handicapperLevel: string }) => {
             const loftDiffA = Math.abs(getLoftValue(a.loft) - targetLoft);
             const loftDiffB = Math.abs(getLoftValue(b.loft) - targetLoft);
             return loftDiffA - loftDiffB;
@@ -236,14 +242,15 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
 
       if (recommendedClub) {
         console.log(
-          `Recommended: ${recommendedClub.type} (${recommendedClub.specificType || ''}) (${recommendedClub.brand} ${recommendedClub.model}, Loft: ${recommendedClub.loft})`
+          `Recommended: ${recommendedClub.type} (${recommendedClub.specificType ?? ''}) (${recommendedClub.brand} ${recommendedClub.model}, Loft: ${recommendedClub.loft ?? 'N/A'})`
         );
       } else {
         console.log(`No club found to fill loft gap at ${targetLoft.toFixed(1)}°, even within ±7°`);
       }
       return recommendedClub;
     })
-    .filter((club: Club & { image_path: string }) => club && !selectedClubs.some(c => c.id === club.id));
+    .filter((club): club is Club & { image_path: string; handicapperLevel: string } => 
+      club != null && !selectedClubs.some(c => c.id === club.id));
 
   return (
     <div>
@@ -260,12 +267,13 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
-              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+              d="M3 3h2l1 2h13l-2 9H6L3 3zm3 12a2 2 0 100 4 2 2 0 000-4zm11 0a2 2 0 100 4 2 2 0 000-4z"
             />
           </svg>
           <span className="text-sm font-medium whitespace-nowrap">
@@ -397,7 +405,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                             {club.brand} {club.model}
                           </p>
                           <p className="text-sm text-gray-600">
-                            Loft: {club.loft || 'N/A'}
+                            Loft: {club.loft ?? 'N/A'}
                           </p>
                           {club.shaftMaterial && (
                             <p className="text-sm text-gray-600">
@@ -419,6 +427,9 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                               Bounce: {club.bounce}
                             </p>
                           )}
+                          <p className="text-sm text-gray-600">
+                            Handicapper Level: {club.handicapperLevel}
+                          </p>
                           <p className="text-sm text-green-600">
                             £{club.price.toFixed(2)}
                           </p>
@@ -496,12 +507,12 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                 {sortedClubs[gap.index].specificType
                                   ? `(${sortedClubs[gap.index].specificType})`
                                   : ''}{' '}
-                                ({sortedClubs[gap.index].loft || 'N/A'}) and{' '}
+                                ({sortedClubs[gap.index].loft ?? 'N/A'}) and{' '}
                                 {sortedClubs[gap.index + 1].type}{' '}
                                 {sortedClubs[gap.index + 1].specificType
                                   ? `(${sortedClubs[gap.index + 1].specificType})`
                                   : ''}{' '}
-                                ({sortedClubs[gap.index + 1].loft || 'N/A'}). Suggested loft to fill gap: {gap.recommendedLoft.toFixed(1)}°
+                                ({sortedClubs[gap.index + 1].loft ?? 'N/A'}). Suggested loft to fill gap: {gap.recommendedLoft.toFixed(1)}°
                               </p>
                             ))}
                             {recommendations.length > 0 ? (
@@ -533,7 +544,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                           <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
                                         )}
                                         <img
-                                          src={`/${club.image_path}`}
+                                          src={`/${club.image_path}`} // Use the constructed image_path
                                           alt={`${club.brand} ${club.model}`}
                                           className="absolute top-0 left-0 w-full h-full object-cover rounded-lg max-w-[3rem] max-h-[2rem]"
                                           onLoad={() =>
@@ -555,7 +566,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                       <p className="text-sm text-gray-600">
                                         {club.type}{' '}
                                         {club.subType ? `(${club.subType})` : ''}:{' '}
-                                        {club.brand} {club.model} ({club.loft || 'N/A'})
+                                        {club.brand} {club.model} ({club.loft ?? 'N/A'})
                                       </p>
                                     </div>
                                     <button

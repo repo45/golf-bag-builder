@@ -20,10 +20,28 @@ const typedClubsData = clubsData as unknown as ClubsData;
 // Debug: Log the loaded data
 console.log("Clubs Data:", typedClubsData.clubs);
 
-const categories = [
+// Define types for the categories array
+interface SubSubItem {
+  name: string;
+  filter: string;
+}
+
+interface SubItem {
+  name: string;
+  filter: string;
+  subSubItems?: SubSubItem[];
+}
+
+interface Category {
+  name: string;
+  icon: string;
+  subItems?: SubItem[];
+}
+
+const categories: Category[] = [
   {
-    name: "All", // New "All" category
-    icon: "M12 2L2 22h20L12 2z", // Icon for "All" (triangle, can adjust as needed)
+    name: "All",
+    icon: "M12 2L2 22h20L12 2z",
     subItems: [],
   },
   {
@@ -93,29 +111,29 @@ const categories = [
 ];
 
 const App: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All"); // Default to "All"
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedSubItem, setSelectedSubItem] = useState<string | null>(null);
   const [selectedSubSubItem, setSelectedSubSubItem] = useState<string | null>(null);
   const [selectedClubModel, setSelectedClubModel] = useState<ClubModel | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Club | null>(null);
-  const [selectedClubs, setSelectedClubs] = useState<(Club & { image_path: string })[]>([]);
+  const [selectedClubs, setSelectedClubs] = useState<(Club & { image_path: string; handicapperLevel: string })[]>([]);
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
   const [isBagPinned, setIsBagPinned] = useState<boolean>(false);
   const [openCategories, setOpenCategories] = useState<string[]>([]);
-  // State for sorting and additional filters
   const [sortOption, setSortOption] = useState<string>('default');
   const [filterHandedness, setFilterHandedness] = useState<string>('');
   const [filterBrand, setFilterBrand] = useState<string>('');
+  const [filterHandicapperLevel, setFilterHandicapperLevel] = useState<string>('');
   const [filterPriceMin, setFilterPriceMin] = useState<string>('');
   const [filterPriceMax, setFilterPriceMax] = useState<string>('');
-  // State for sidebar "Sort & Filter" section
   const [isSortFilterOpen, setIsSortFilterOpen] = useState<boolean>(true);
-  // State for search bar visibility in top nav
   const [showSearchInTopNav, setShowSearchInTopNav] = useState<boolean>(false);
-  // State for toggling search bar on mobile
   const [isSearchBarOpen, setIsSearchBarOpen] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+  const pageSizeOptions = [25, 50, 75, 100];
 
   // Debounce search query
   useEffect(() => {
@@ -132,7 +150,7 @@ const App: React.FC = () => {
       const banner = document.getElementById('banner');
       if (banner) {
         const bannerBottom = banner.getBoundingClientRect().bottom;
-        setShowSearchInTopNav(bannerBottom < 64); // 64px is the header height
+        setShowSearchInTopNav(bannerBottom < 64);
       }
     };
 
@@ -140,19 +158,10 @@ const App: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Extract unique handedness values for filter dropdown
-  const handednessOptions = useMemo(() => {
-    const handednessSet = new Set<string>();
-    typedClubsData.clubs.forEach(clubModel => {
-      clubModel.variants.forEach(variant => {
-        const handednessMatch = variant.description.match(/Handedness: (Right-Handed|Left-Handed)/i);
-        if (handednessMatch) {
-          handednessSet.add(handednessMatch[1]);
-        }
-      });
-    });
-    return Array.from(handednessSet).sort();
-  }, []);
+  // Reset current page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption]);
 
   // Extract unique brands for filter dropdown
   const brandOptions = useMemo(() => {
@@ -165,27 +174,66 @@ const App: React.FC = () => {
     return Array.from(brandSet).sort();
   }, []);
 
+  // Extract unique handicapper levels for filter buttons
+  const handicapperLevelOptions = useMemo(() => {
+    const levelSet = new Set<string>();
+    typedClubsData.clubs.forEach(clubModel => {
+      if (clubModel.handicapperLevel) {
+        levelSet.add(clubModel.handicapperLevel);
+      }
+    });
+    return Array.from(levelSet).sort();
+  }, []);
+
   // Filter and sort club models
   const filteredClubModels: ClubModel[] = useMemo(() => {
+    console.log("Filtering clubs with:", {
+      selectedCategory,
+      selectedSubItem,
+      selectedSubSubItem,
+      debouncedSearchQuery,
+      filterHandedness,
+      filterBrand,
+      filterHandicapperLevel,
+      filterPriceMin,
+      filterPriceMax,
+      sortOption,
+    });
+
     return typedClubsData.clubs
       .filter(clubModel => {
-        // Skip category filter if "All" is selected
         const matchesCategory = selectedCategory === "All" || clubModel.type === selectedCategory;
+
+        const categoryMatchesType = selectedCategory === "All" ||
+          (selectedCategory === "Hybrid" && clubModel.type === "Hybrid" && clubModel.category.toLowerCase().includes("hybrid")) ||
+          (selectedCategory === "Fairway Wood" && clubModel.type === "Fairway Wood" && clubModel.category.toLowerCase().includes("fairway wood")) ||
+          (selectedCategory === "Iron Set" && clubModel.type === "Iron Set" && clubModel.category.toLowerCase().includes("iron")) ||
+          (selectedCategory === "Wedge" && clubModel.type === "Wedge" && clubModel.category.toLowerCase().includes("wedge")) ||
+          (selectedCategory === "Driver" && clubModel.type === "Driver" && clubModel.category.toLowerCase().includes("driver")) ||
+          (selectedCategory === "Putter" && clubModel.type === "Putter" && clubModel.category.toLowerCase().includes("putter"));
+
+        if (!matchesCategory || !categoryMatchesType) return false;
 
         const matchesSubItem = selectedSubItem
           ? selectedCategory === "Hybrid"
-            ? clubModel.variants.some(variant => 
-                variant.loft === selectedSubItem || variant.loft === `${parseFloat(selectedSubItem.split(" ")[0])} degrees`
-              )
+            ? selectedSubItem === "Utility Iron"
+              ? clubModel.specificType === "Utility Iron"
+              : (() => {
+                  const selectedLoft = selectedSubItem ?? '';
+                  const parsedSelectedLoft = parseFloat(selectedLoft.split(" ")[0]);
+                  const clubLoft = clubModel.specificType?.replace('°', '') ?? '';
+                  const parsedClubLoft = parseFloat(clubLoft);
+                  return parsedClubLoft === parsedSelectedLoft;
+                })()
             : selectedCategory === "Iron Set"
             ? selectedSubSubItem
-              ? clubModel.subType === "Individual" && clubModel.specificType?.toLowerCase() === selectedSubSubItem.toLowerCase()
+              ? clubModel.subType === "Individual" && (clubModel.specificType ?? '').toLowerCase() === (selectedSubSubItem ?? '').toLowerCase()
               : clubModel.subType === selectedSubItem
-            : clubModel.specificType?.toLowerCase() === selectedSubItem.toLowerCase()
+            : (clubModel.specificType ?? '').toLowerCase() === (selectedSubItem ?? '').toLowerCase()
           : true;
 
         const matchesSubSubItem = selectedSubSubItem && selectedCategory !== "Iron Set"
-          ? clubModel.specificType?.toLowerCase() === selectedSubSubItem.toLowerCase()
+          ? (clubModel.specificType ?? '').toLowerCase() === (selectedSubSubItem ?? '').toLowerCase()
           : true;
 
         const matchesSearch = debouncedSearchQuery
@@ -194,7 +242,6 @@ const App: React.FC = () => {
             clubModel.type.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
           : true;
 
-        // Additional filters
         const matchesHandedness = filterHandedness
           ? clubModel.variants.some(variant => {
               const handednessMatch = variant.description.match(/Handedness: (Right-Handed|Left-Handed)/i);
@@ -206,12 +253,31 @@ const App: React.FC = () => {
           ? clubModel.brand === filterBrand
           : true;
 
+        const matchesHandicapperLevel = filterHandicapperLevel
+          ? clubModel.handicapperLevel === filterHandicapperLevel
+          : true;
+
         const price = clubModel.variants[0].price;
         const minPrice = filterPriceMin ? parseFloat(filterPriceMin) : 0;
         const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : Infinity;
         const matchesPriceRange = price >= minPrice && price <= maxPrice;
 
-        return matchesCategory && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesPriceRange;
+        const result = matchesCategory && categoryMatchesType && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesHandicapperLevel && matchesPriceRange;
+
+        console.log(`Club: ${clubModel.brand} ${clubModel.model} (Type: ${clubModel.type}, Category: ${clubModel.category}) - Matches:`, {
+          matchesCategory,
+          categoryMatchesType,
+          matchesSubItem,
+          matchesSubSubItem,
+          matchesSearch,
+          matchesHandedness,
+          matchesBrand,
+          matchesHandicapperLevel,
+          matchesPriceRange,
+          result,
+        });
+
+        return result;
       })
       .sort((a, b) => {
         if (sortOption === 'price-asc') {
@@ -221,21 +287,41 @@ const App: React.FC = () => {
         } else if (sortOption === 'brand') {
           return a.brand.localeCompare(b.brand);
         } else if (sortOption === 'loft') {
-          const getLoftValue = (loft: string): number => {
+          const getLoftValue = (loft: string | null): number => {
             if (!loft || loft === 'N/A') return Infinity;
             const cleanedLoft = loft.replace('°', '').replace(' degrees', '').replace('degree', '').trim();
             return parseFloat(cleanedLoft) || Infinity;
           };
           return getLoftValue(a.variants[0].loft) - getLoftValue(b.variants[0].loft);
         }
-        return 0; // Default: No sorting
+        return 0;
       });
-  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterPriceMin, filterPriceMax, sortOption]);
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption]);
 
-  // Debug: Log filtered clubs
+  // Pagination logic
+  const totalItems = filteredClubModels.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedClubModels = filteredClubModels.slice(startIndex, endIndex);
+
+  // Calculate the range of page numbers to display
+  const maxPagesToShow = 5;
+  const pageRange = [];
+  const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+  const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+  for (let i = startPage; i <= endPage; i++) {
+    pageRange.push(i);
+  }
+
+  // Adjust startPage if endPage is at the totalPages to ensure we show maxPagesToShow pages
+  const adjustedStartPage = endPage === totalPages ? Math.max(1, endPage - maxPagesToShow + 1) : startPage;
+
   console.log("Filtered Clubs:", filteredClubModels);
+  console.log("Paginated Clubs:", paginatedClubModels, `Page ${currentPage} of ${totalPages}`);
 
-  const handleAddToBag = (club: Club) => {
+  const handleAddToBag = (club: Club & { image_path?: string; handicapperLevel: string }) => {
     if (selectedClubs.length >= 14) {
       toast.error("Cannot add more than 14 clubs to the bag.", {
         position: "top-right",
@@ -244,12 +330,13 @@ const App: React.FC = () => {
       return;
     }
     if (!selectedClubs.some(c => c.id === club.id)) {
-      const clubModel = filteredClubModels.find(cm => 
-        cm.brand === club.brand && cm.model === club.model
-      );
-      const clubWithImage = {
+      const clubWithImage: Club & { image_path: string; handicapperLevel: string } = {
         ...club,
-        image_path: clubModel ? `club_images/${clubModel.image}.jpg` : "driver_images/placeholder.jpg"
+        image_path: club.image_path ?? (
+          filteredClubModels.find(cm => 
+            cm.brand === club.brand && cm.model === club.model
+          )?.image ? `club_images/${filteredClubModels.find(cm => cm.brand === club.brand && cm.model === club.model)!.image}.jpg` : "driver_images/placeholder.jpg"
+        ),
       };
       setSelectedClubs([...selectedClubs, clubWithImage]);
       toast.success(`${club.brand} ${club.model} added to your bag!`, {
@@ -270,6 +357,28 @@ const App: React.FC = () => {
     }
   };
 
+  const handleReplaceClub = (oldClubId: number, newClub: Club & { image_path?: string; handicapperLevel: string }) => {
+    const oldClub = selectedClubs.find(c => c.id === oldClubId);
+    if (!oldClub) return;
+
+    setSelectedClubs(selectedClubs.filter(c => c.id !== oldClubId));
+
+    const clubWithImage: Club & { image_path: string; handicapperLevel: string } = {
+      ...newClub,
+      image_path: newClub.image_path ?? (
+        filteredClubModels.find(cm => 
+          cm.brand === newClub.brand && cm.model === newClub.model
+        )?.image ? `club_images/${filteredClubModels.find(cm => cm.brand === newClub.brand && cm.model === newClub.model)!.image}.jpg` : "driver_images/placeholder.jpg"
+      ),
+    };
+    setSelectedClubs([...selectedClubs.filter(c => c.id !== oldClubId), clubWithImage]);
+
+    toast.success(`${newClub.brand} ${newClub.model} replaced in your bag!`, {
+      position: "top-right",
+      autoClose: 3000,
+    });
+  };
+
   const handleViewDetails = (clubModel: ClubModel, variant: Club) => {
     console.log("Setting selectedClubModel:", clubModel);
     console.log("Setting selectedVariant:", variant);
@@ -286,6 +395,7 @@ const App: React.FC = () => {
   };
 
   const selectCategory = (categoryName: string) => {
+    console.log("Selecting category:", categoryName, "Resetting sub-items...");
     setSelectedCategory(categoryName);
     setSelectedSubItem(null);
     setSelectedSubSubItem(null);
@@ -293,12 +403,14 @@ const App: React.FC = () => {
   };
 
   const selectSubItem = (categoryName: string, subItemFilter: string) => {
+    console.log("Selecting sub-item:", subItemFilter, "for category:", categoryName);
     setSelectedCategory(categoryName);
     setSelectedSubItem(subItemFilter);
     setSelectedSubSubItem(null);
   };
 
   const selectSubSubItem = (categoryName: string, subItemFilter: string, subSubItemFilter: string) => {
+    console.log("Selecting sub-sub-item:", subSubItemFilter, "for sub-item:", subItemFilter, "in category:", categoryName);
     setSelectedCategory(categoryName);
     setSelectedSubItem(subItemFilter);
     setSelectedSubSubItem(subSubItemFilter);
@@ -326,7 +438,6 @@ const App: React.FC = () => {
             </a>
           </nav>
           <div className="flex items-center space-x-4">
-            {/* Search Bar in Top Nav (shown on scroll) */}
             {showSearchInTopNav && (
               <>
                 <button
@@ -419,7 +530,6 @@ const App: React.FC = () => {
         </div>
       </header>
       <div className="relative">
-        {/* Hero Section with Background Image */}
         <div
           className="relative min-h-[calc(100vh-64px)] flex w-full flex-col items-center justify-center p-5 text-center md:px-20 lg:space-y-10"
           id="banner"
@@ -465,14 +575,12 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-        {/* Left Nav Bar and Club Cards Section */}
         <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)]">
           <nav
             className={`w-full md:w-64 bg-white md:h-screen md:sticky md:top-[64px] p-6 shadow-md flex-shrink-0 md:block ${
               isCategorySidebarOpen ? "block" : "hidden md:block"
             }`}
           >
-            {/* Categories */}
             <ul className="mb-6">
               {categories.map(category => (
                 <li key={category.name} className="mb-2">
@@ -538,11 +646,9 @@ const App: React.FC = () => {
                             >
                               <span>{subItem.name}</span>
                             </button>
-                            {subItem.subSubItems && (
+                            {subItem.subSubItems && subItem.subSubItems.length > 0 && (
                               <button
-                                onClick={() =>
-                                  toggleCategory(`${category.name}-${subItem.name}`)
-                                }
+                                onClick={() => toggleCategory(`${category.name}-${subItem.name}`)}
                                 className="p-2"
                               >
                                 <svg
@@ -565,27 +671,26 @@ const App: React.FC = () => {
                               </button>
                             )}
                           </div>
-                          {subItem.subSubItems &&
-                            openCategories.includes(`${category.name}-${subItem.name}`) && (
-                              <ul className="ml-6 mt-1">
-                                {subItem.subSubItems.map(subSubItem => (
-                                  <li key={subSubItem.name}>
-                                    <button
-                                      className={`w-full text-left py-1 px-4 rounded-lg flex items-center transition ${
-                                        selectedSubSubItem === subSubItem.filter
-                                          ? "bg-gray-200 text-gray-800 font-semibold"
-                                          : "text-gray-600 hover:bg-gray-100"
-                                      }`}
-                                      onClick={() =>
-                                        selectSubSubItem(category.name, subItem.filter, subSubItem.filter)
-                                      }
-                                    >
-                                      {subSubItem.name}
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                          {subItem.subSubItems && openCategories.includes(`${category.name}-${subItem.name}`) && (
+                            <ul className="ml-6 mt-1">
+                              {subItem.subSubItems.map(subSubItem => (
+                                <li key={subSubItem.name}>
+                                  <button
+                                    className={`w-full text-left py-1 px-4 rounded-lg flex items-center transition ${
+                                      selectedSubSubItem === subSubItem.filter
+                                        ? "bg-gray-200 text-gray-800 font-semibold"
+                                        : "text-gray-600 hover:bg-gray-100"
+                                    }`}
+                                    onClick={() =>
+                                      selectSubSubItem(category.name, subItem.filter, subSubItem.filter)
+                                    }
+                                  >
+                                    {subSubItem.name}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -594,7 +699,6 @@ const App: React.FC = () => {
               ))}
             </ul>
 
-            {/* Sort & Filter Section */}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-800">Sort & Filter</h3>
@@ -620,13 +724,13 @@ const App: React.FC = () => {
                 </button>
               </div>
               {isSortFilterOpen && (
-                <div className="mt-2 space-y-3">
+                <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Sort By</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
                     <select
                       value={sortOption}
                       onChange={(e) => setSortOption(e.target.value)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors md:text-sm"
                     >
                       <option value="default">Default</option>
                       <option value="price-asc">Price: Low to High</option>
@@ -636,11 +740,11 @@ const App: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Brand</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
                     <select
                       value={filterBrand}
                       onChange={(e) => setFilterBrand(e.target.value)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors md:text-sm"
                     >
                       <option value="">All Brands</option>
                       {brandOptions.map(brand => (
@@ -649,34 +753,64 @@ const App: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Handedness</label>
-                    <select
-                      value={filterHandedness}
-                      onChange={(e) => setFilterHandedness(e.target.value)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
-                    >
-                      <option value="">All</option>
-                      {handednessOptions.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Handedness</label>
+                    <div className="flex gap-2">
+                      <button
+                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${
+                          filterHandedness === "Right-Handed"
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        } md:text-sm`}
+                        onClick={() => setFilterHandedness(filterHandedness === "Right-Handed" ? "" : "Right-Handed")}
+                      >
+                        Right-Handed
+                      </button>
+                      <button
+                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${
+                          filterHandedness === "Left-Handed"
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        } md:text-sm`}
+                        onClick={() => setFilterHandedness(filterHandedness === "Left-Handed" ? "" : "Left-Handed")}
+                      >
+                        Left-Handed
+                      </button>
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Price Range</label>
-                    <div className="flex gap-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Handicapper Level</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {handicapperLevelOptions.map(level => (
+                        <button
+                          key={level}
+                          className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${
+                            filterHandicapperLevel === level
+                              ? "bg-green-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          } md:text-sm`}
+                          onClick={() => setFilterHandicapperLevel(filterHandicapperLevel === level ? "" : level)}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
+                    <div className="flex gap-3">
                       <input
                         type="number"
                         placeholder="Min"
                         value={filterPriceMin}
                         onChange={(e) => setFilterPriceMin(e.target.value)}
-                        className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md"
+                        className="block w-full pl-4 pr-4 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md md:text-sm"
                       />
                       <input
                         type="number"
                         placeholder="Max"
                         value={filterPriceMax}
                         onChange={(e) => setFilterPriceMax(e.target.value)}
-                        className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 sm:text-sm rounded-md"
+                        className="block w-full pl-4 pr-4 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md md:text-sm"
                       />
                     </div>
                   </div>
@@ -685,10 +819,11 @@ const App: React.FC = () => {
                       setSortOption('default');
                       setFilterHandedness('');
                       setFilterBrand('');
+                      setFilterHandicapperLevel('');
                       setFilterPriceMin('');
                       setFilterPriceMax('');
                     }}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                    className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-base md:text-sm"
                   >
                     Clear Filters
                   </button>
@@ -697,13 +832,37 @@ const App: React.FC = () => {
             </div>
           </nav>
           <main
-            className={`flex-1 p-6 overflow-auto transition-all duration-300`}
+            className={`flex-1 p-6 overflow-auto transition-all duration-300 ${
+              isBagPinned ? 'md:mr-80' : ''
+            }`}
           >
             <div className="max-w-7xl mx-auto">
-              {/* Club Grid */}
+              {/* Page Size Selector and Info */}
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-gray-700">Items per page:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-full shadow-sm text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:bg-gray-50"
+                  >
+                    {pageSizeOptions.map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Showing {startIndex + 1}–{Math.min(endIndex, totalItems)} of {totalItems} clubs
+                </p>
+              </div>
+
+              {/* Club List */}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(14.5rem,1fr))] gap-6">
-                {filteredClubModels.length > 0 ? (
-                  filteredClubModels.map(clubModel => {
+                {paginatedClubModels.length > 0 ? (
+                  paginatedClubModels.map(clubModel => {
                     if (!clubModel.variants || clubModel.variants.length === 0) {
                       console.warn(`No variants found for ${clubModel.brand} ${clubModel.model}`);
                       return null;
@@ -715,6 +874,7 @@ const App: React.FC = () => {
                       specificType: clubModel.specificType,
                       brand: clubModel.brand,
                       model: clubModel.model,
+                      handicapperLevel: clubModel.handicapperLevel,
                     };
                     return (
                       <ClubCard
@@ -735,6 +895,86 @@ const App: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="mt-8 flex justify-center">
+                  <nav className="inline-flex items-center gap-1 bg-white p-2 rounded-full shadow-sm border border-gray-200">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-green-50 hover:text-green-700"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Page Numbers */}
+                    {adjustedStartPage > 1 && (
+                      <>
+                        <button
+                          onClick={() => setCurrentPage(1)}
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-all duration-200"
+                        >
+                          1
+                        </button>
+                        {adjustedStartPage > 2 && (
+                          <span className="text-sm text-gray-500 px-2">...</span>
+                        )}
+                      </>
+                    )}
+
+                    {pageRange.map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
+                          currentPage === page
+                            ? "bg-green-600 text-white shadow-inner"
+                            : "text-gray-600 hover:bg-green-50 hover:text-green-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    {endPage < totalPages && (
+                      <>
+                        {endPage < totalPages - 1 && (
+                          <span className="text-sm text-gray-500 px-2">...</span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-all duration-200"
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-green-50 hover:text-green-700"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              )}
             </div>
           </main>
         </div>
@@ -759,6 +999,7 @@ const App: React.FC = () => {
         }}
         onAddToBag={handleAddToBag}
         onRemove={handleRemoveFromBag}
+        onReplace={handleReplaceClub}
         onSelectVariant={(variant) => setSelectedVariant(variant)}
         isSelected={selectedVariant ? selectedClubs.some(c => c.id === selectedVariant.id) : false}
         isBagFull={selectedClubs.length >= 14}
