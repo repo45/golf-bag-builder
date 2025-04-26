@@ -7,6 +7,7 @@ interface SelectedClubsSidebarProps {
   onAdd: (club: Club & { image_path: string; handicapperLevel: string }) => void;
   isPinned: boolean;
   onPinToggle: () => void;
+  onOpenChange: (isOpen: boolean) => void; // New prop to notify parent of open state changes
   defaultOpen: boolean;
   clubsData: ClubModel[];
 }
@@ -17,6 +18,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
   onAdd,
   isPinned,
   onPinToggle,
+  onOpenChange,
   defaultOpen,
   clubsData,
 }) => {
@@ -25,7 +27,6 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
   const [imageLoadingStates, setImageLoadingStates] = useState<{ [key: string]: boolean }>({});
   const [recommendationImageLoadingStates, setRecommendationImageLoadingStates] = useState<{ [key: string]: boolean }>({});
 
-  // Update isOpen based on defaultOpen prop changes
   useEffect(() => {
     setIsOpen(defaultOpen);
   }, [defaultOpen]);
@@ -37,6 +38,10 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
     });
   }, [selectedClubs]);
 
+  useEffect(() => {
+    onOpenChange(isOpen); // Notify parent when isOpen changes
+  }, [isOpen, onOpenChange]);
+
   const totalPrice = selectedClubs.reduce((sum, club) => sum + club.price, 0);
 
   const getLoftValue = (loft: string | null): number => {
@@ -44,13 +49,12 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
       console.log(`Invalid loft value: ${loft}`);
       return Infinity;
     }
-    // Extract numeric part (e.g., "10.0 degrees" -> "10.0")
     const numericMatch = loft.match(/\d+(\.\d+)?/);
     if (!numericMatch) {
       console.log(`Failed to extract numeric loft from: ${loft}`);
       return Infinity;
     }
-    const numericLoft = numericMatch[0]; // e.g., "10.0"
+    const numericLoft = numericMatch[0];
     const cleanedLoft = numericLoft.trim();
     const loftValue = parseFloat(cleanedLoft);
     if (isNaN(loftValue)) {
@@ -135,11 +139,6 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
     }
   }
 
-  const existingLofts = sortedClubs
-    .map(club => getLoftValue(club.loft))
-    .filter(loft => loft !== Infinity);
-  console.log('Existing Lofts in Bag:', existingLofts);
-
   const recommendations = gaps
     .map(gap => {
       const targetLoft = gap.recommendedLoft;
@@ -155,7 +154,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
             brand: clubModel.brand,
             model: clubModel.model,
             handicapperLevel: clubModel.handicapperLevel,
-            image_path: `club_images/${clubModel.image}.jpg`, // Ensure image_path is set
+            image_path: `club_images/${clubModel.image}.jpg`,
           }))
         )
         .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
@@ -175,6 +174,9 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
           return false;
         })
         .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
+          const existingLofts = sortedClubs
+            .map(club => getLoftValue(club.loft))
+            .filter(loft => loft !== Infinity);
           const loft = getLoftValue(club.loft);
           const withinNarrowRange = loft >= targetLoft - 2 && loft <= targetLoft + 2;
           const isDuplicateLoft = existingLofts.includes(loft);
@@ -203,7 +205,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
               brand: clubModel.brand,
               model: clubModel.model,
               handicapperLevel: clubModel.handicapperLevel,
-              image_path: `club_images/${clubModel.image}.jpg`, // Ensure image_path is set
+              image_path: `club_images/${clubModel.image}.jpg`,
             }))
           )
           .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
@@ -223,6 +225,9 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
             return false;
           })
           .filter((club: Club & { image_path: string; handicapperLevel: string }) => {
+            const existingLofts = sortedClubs
+              .map(club => getLoftValue(club.loft))
+              .filter(loft => loft !== Infinity);
             const loft = getLoftValue(club.loft);
             const withinBroaderRange = loft >= targetLoft - 7 && loft <= targetLoft + 7;
             const isDuplicateLoft = existingLofts.includes(loft);
@@ -256,7 +261,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
     <div>
       {/* Ribbon on all screens */}
       <div
-        className={`fixed top-1/2 right-0 transform -translate-y-1/2 w-10 h-32 bg-gray-200 text-gray-800 flex items-center justify-center cursor-pointer z-50 rounded-l-md shadow-md hover:scale-105 transition-all duration-300 ${
+        className={`fixed top-1/2 right-0 transform -translate-y-1/2 w-10 h-32 bg-gray-200 text-gray-800 flex items-center justify-center cursor-pointer z-60 rounded-l-md shadow-md hover:scale-105 transition-all duration-300 ${
           isOpen ? "bg-green-600 text-white hover:bg-green-700" : "hover:bg-gray-300"
         } ${isPinned ? "right-[320px]" : ""}`}
         onClick={() => !isPinned && setIsOpen(!isOpen)}
@@ -284,7 +289,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
 
       {/* Sidebar content */}
       <div
-        className={`fixed top-0 right-0 h-full bg-white shadow-md transition-all duration-500 ease-in-out z-50 ${
+        className={`fixed top-0 right-0 h-full bg-white shadow-md transition-all duration-500 ease-in-out z-60 ${
           isOpen || isPinned
             ? "w-4/5 md:w-80 right-0 visibility-visible overflow-y-auto opacity-100"
             : "w-0 right-[-100%] visibility-hidden overflow-hidden opacity-0"
@@ -544,7 +549,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                           <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
                                         )}
                                         <img
-                                          src={`/${club.image_path}`} // Use the constructed image_path
+                                          src={`/${club.image_path}`}
                                           alt={`${club.brand} ${club.model}`}
                                           className="absolute top-0 left-0 w-full h-full object-cover rounded-lg max-w-[3rem] max-h-[2rem]"
                                           onLoad={() =>

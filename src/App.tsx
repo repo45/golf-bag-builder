@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import ClubCard from "./components/ClubCard";
 import ClubDetailModal from "./components/ClubDetailModal";
 import SelectedClubsSidebar from "./components/SelectedClubsSidebar";
+import MyClubsModal from "./components/MyClubsModal";
 import clubsData from "./data/clubs.json";
 import { Club, ClubModel } from "./types/club";
 import grassBg from "./assets/grass_bg_1920x1080_png.png";
@@ -129,11 +130,26 @@ const App: React.FC = () => {
   const [filterPriceMin, setFilterPriceMin] = useState<string>('');
   const [filterPriceMax, setFilterPriceMax] = useState<string>('');
   const [isSortFilterOpen, setIsSortFilterOpen] = useState<boolean>(true);
-  const [showSearchInTopNav, setShowSearchInTopNav] = useState<boolean>(false);
-  const [isSearchBarOpen, setIsSearchBarOpen] = useState<boolean>(false);
+  const [showStickySearchBar, setShowStickySearchBar] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
   const pageSizeOptions = [25, 50, 75, 100];
+  const [isMyClubsModalOpen, setIsMyClubsModalOpen] = useState<boolean>(false);
+  const [myClubsLofts, setMyClubsLofts] = useState<number[]>([]);
+  const [recommendedLofts, setRecommendedLofts] = useState<number[]>([]);
+  const [filterByMyClubsGaps, setFilterByMyClubsGaps] = useState<boolean>(false);
+  const [isBagSidebarOpen, setIsBagSidebarOpen] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+
+  // Load lofts from local storage on mount
+  useEffect(() => {
+    const savedLofts = localStorage.getItem('myClubsLofts');
+    if (savedLofts) {
+      const parsedLofts = JSON.parse(savedLofts);
+      setMyClubsLofts(parsedLofts);
+      calculateRecommendedLofts(parsedLofts);
+    }
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -144,13 +160,29 @@ const App: React.FC = () => {
     return () => debouncedSetSearch.cancel();
   }, [searchQuery]);
 
-  // Scroll listener to show/hide search bar in top nav
+  // Detect mobile vs desktop
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Scroll listener to show/hide sticky search bar
   useEffect(() => {
     const handleScroll = () => {
       const banner = document.getElementById('banner');
       if (banner) {
         const bannerBottom = banner.getBoundingClientRect().bottom;
-        setShowSearchInTopNav(bannerBottom < 64);
+        const headerHeight = document.querySelector('header')?.offsetHeight || 64;
+        const shouldShow = bannerBottom <= headerHeight;
+        console.log('Scroll Debug:', { bannerBottom, headerHeight, shouldShow });
+        setShowStickySearchBar(shouldShow);
+      } else {
+        console.log('Banner element not found');
       }
     };
 
@@ -158,10 +190,15 @@ const App: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Debug sidebar states
+  useEffect(() => {
+    console.log('Sidebar States:', { isCategorySidebarOpen, isBagSidebarOpen, isMobile });
+  }, [isCategorySidebarOpen, isBagSidebarOpen, isMobile]);
+
   // Reset current page to 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption]);
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption, filterByMyClubsGaps]);
 
   // Extract unique brands for filter dropdown
   const brandOptions = useMemo(() => {
@@ -185,6 +222,24 @@ const App: React.FC = () => {
     return Array.from(levelSet).sort();
   }, []);
 
+  // Function to calculate recommended lofts based on user-input lofts
+  const calculateRecommendedLofts = (lofts: number[]) => {
+    const sortedLofts = [...lofts].sort((a, b) => a - b).filter(loft => !isNaN(loft) && loft !== Infinity);
+    const loftGaps: { gap: number; recommendedLoft: number }[] = [];
+    for (let i = 0; i < sortedLofts.length - 1; i++) {
+      const currentLoft = sortedLofts[i];
+      const nextLoft = sortedLofts[i + 1];
+      const gap = nextLoft - currentLoft;
+      if (gap > 5) {
+        loftGaps.push({
+          gap,
+          recommendedLoft: currentLoft + (gap / 2),
+        });
+      }
+    }
+    setRecommendedLofts(loftGaps.map(gap => gap.recommendedLoft));
+  };
+
   // Filter and sort club models
   const filteredClubModels: ClubModel[] = useMemo(() => {
     console.log("Filtering clubs with:", {
@@ -198,6 +253,8 @@ const App: React.FC = () => {
       filterPriceMin,
       filterPriceMax,
       sortOption,
+      filterByMyClubsGaps,
+      recommendedLofts,
     });
 
     return typedClubsData.clubs
@@ -262,7 +319,14 @@ const App: React.FC = () => {
         const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : Infinity;
         const matchesPriceRange = price >= minPrice && price <= maxPrice;
 
-        const result = matchesCategory && categoryMatchesType && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesHandicapperLevel && matchesPriceRange;
+        const matchesMyClubsGaps = filterByMyClubsGaps && recommendedLofts.length > 0
+          ? clubModel.variants.some(variant => {
+              const loft = parseFloat(variant.loft?.replace('°', '') || '0');
+              return recommendedLofts.some(recommendedLoft => loft >= recommendedLoft - 2 && loft <= recommendedLoft + 2);
+            })
+          : true;
+
+        const result = matchesCategory && categoryMatchesType && matchesSubItem && matchesSubSubItem && matchesSearch && matchesHandedness && matchesBrand && matchesHandicapperLevel && matchesPriceRange && matchesMyClubsGaps;
 
         console.log(`Club: ${clubModel.brand} ${clubModel.model} (Type: ${clubModel.type}, Category: ${clubModel.category}) - Matches:`, {
           matchesCategory,
@@ -274,6 +338,7 @@ const App: React.FC = () => {
           matchesBrand,
           matchesHandicapperLevel,
           matchesPriceRange,
+          matchesMyClubsGaps,
           result,
         });
 
@@ -296,7 +361,7 @@ const App: React.FC = () => {
         }
         return 0;
       });
-  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption]);
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption, filterByMyClubsGaps, recommendedLofts]);
 
   // Pagination logic
   const totalItems = filteredClubModels.length;
@@ -315,7 +380,6 @@ const App: React.FC = () => {
     pageRange.push(i);
   }
 
-  // Adjust startPage if endPage is at the totalPages to ensure we show maxPagesToShow pages
   const adjustedStartPage = endPage === totalPages ? Math.max(1, endPage - maxPagesToShow + 1) : startPage;
 
   console.log("Filtered Clubs:", filteredClubModels);
@@ -416,6 +480,12 @@ const App: React.FC = () => {
     setSelectedSubSubItem(subSubItemFilter);
   };
 
+  const handleSaveMyClubsLofts = (lofts: number[]) => {
+    setMyClubsLofts(lofts);
+    localStorage.setItem('myClubsLofts', JSON.stringify(lofts));
+    calculateRecommendedLofts(lofts);
+  };
+
   const totalPrice = selectedClubs.reduce((sum, club) => sum + club.price, 0);
 
   return (
@@ -423,9 +493,20 @@ const App: React.FC = () => {
       <ToastContainer position="top-right" autoClose={3000} />
       <header className="flex bg-gray-100 transition-colors duration-150 top-0 z-50 w-full sticky py-4 shadow-md">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between w-full">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Golf Bag Builder
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Golf Bag Builder
+            </h1>
+            <button
+              onClick={() => setIsMyClubsModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              My Clubs
+            </button>
+          </div>
           <nav className="hidden md:flex space-x-6">
             <a href="#" className="text-gray-600 hover:text-gray-800">
               Clubs
@@ -438,55 +519,6 @@ const App: React.FC = () => {
             </a>
           </nav>
           <div className="flex items-center space-x-4">
-            {showSearchInTopNav && (
-              <>
-                <button
-                  className="md:hidden text-gray-600 hover:text-gray-800"
-                  onClick={() => setIsSearchBarOpen(!isSearchBarOpen)}
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </button>
-                <div className={`relative ${isSearchBarOpen || window.innerWidth >= 768 ? 'block' : 'hidden'} md:w-64`}>
-                  <input
-                    type="text"
-                    placeholder="Search clubs..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full py-1 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600 text-sm"
-                  />
-                  <button
-                    className="absolute right-0 top-0 h-full px-2 bg-green-600 text-white rounded-r-md hover:bg-green-700 transition-colors"
-                    onClick={() => setSearchQuery(searchQuery)}
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </>
-            )}
             <div className="flex items-center">
               <svg
                 className="w-6 h-6 text-gray-600 mr-2"
@@ -577,7 +609,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)]">
           <nav
-            className={`w-full md:w-64 bg-white md:h-screen md:sticky md:top-[64px] p-6 shadow-md flex-shrink-0 md:block ${
+            className={`w-full md:w-64 bg-white md:h-[calc(100vh-64px)] md:sticky md:top-[64px] p-6 shadow-md flex-shrink-0 md:block overflow-y-auto z-50 ${
               isCategorySidebarOpen ? "block" : "hidden md:block"
             }`}
           >
@@ -814,6 +846,26 @@ const App: React.FC = () => {
                       />
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Filter by My Clubs Gaps</label>
+                    <button
+                      onClick={() => setFilterByMyClubsGaps(!filterByMyClubsGaps)}
+                      disabled={recommendedLofts.length === 0}
+                      className={`w-full py-3 px-4 rounded-md text-base font-medium transition-colors ${
+                        recommendedLofts.length === 0
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : filterByMyClubsGaps
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      } md:text-sm`}
+                    >
+                      {recommendedLofts.length === 0
+                        ? "No Lofts Entered"
+                        : filterByMyClubsGaps
+                        ? "Filtering by Gaps"
+                        : "Filter by Gaps"}
+                    </button>
+                  </div>
                   <button
                     onClick={() => {
                       setSortOption('default');
@@ -822,6 +874,7 @@ const App: React.FC = () => {
                       setFilterHandicapperLevel('');
                       setFilterPriceMin('');
                       setFilterPriceMax('');
+                      setFilterByMyClubsGaps(false);
                     }}
                     className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-base md:text-sm"
                   >
@@ -832,31 +885,56 @@ const App: React.FC = () => {
             </div>
           </nav>
           <main
-            className={`flex-1 p-6 overflow-auto transition-all duration-300 ${
+            className={`flex-1 p-6 transition-all duration-300 ${
               isBagPinned ? 'md:mr-80' : ''
             }`}
           >
-            <div className="max-w-7xl mx-auto">
-              {/* Page Size Selector and Info */}
-              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700">Items per page:</label>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-full shadow-sm text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:bg-gray-50"
-                  >
-                    {pageSizeOptions.map(size => (
-                      <option key={size} value={size}>{size}</option>
-                    ))}
-                  </select>
+            <div className="max-w-7xl mx-auto px-4">
+              {/* Page Size Selector and Sticky Search Bar */}
+              <div className="mb-6">
+                <div className={`flex flex-col sm:flex-row sm:items-center sm:gap-4 ${showStickySearchBar && (!isMobile || (!isCategorySidebarOpen && !isBagSidebarOpen)) ? 'fixed top-[64px] bg-gray-100 z-40 shadow-sm py-2 px-4 w-full md:w-[calc(100%-256px)] md:left-[256px] md:max-w-7xl md:mx-auto' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700">Items per page:</label>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="px-3 py-1.5 bg-white border border-gray-300 rounded-full shadow-sm text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:bg-gray-50"
+                    >
+                      {pageSizeOptions.map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {showStickySearchBar && (!isMobile || (!isCategorySidebarOpen && !isBagSidebarOpen)) && (
+                    <div className="relative w-full sm:w-64">
+                      <input
+                        type="text"
+                        placeholder="Search clubs..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full py-2 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600 text-sm"
+                      />
+                      <button
+                        className="absolute right-0 top-0 h-full px-2 bg-green-600 text-white rounded-r-md hover:bg-green-700 transition-colors"
+                        onClick={() => setSearchQuery(searchQuery)}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-sm text-gray-500">
+                    Showing {startIndex + 1}–{Math.min(endIndex, totalItems)} of {totalItems} clubs
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Showing {startIndex + 1}–{Math.min(endIndex, totalItems)} of {totalItems} clubs
-                </p>
+                {/* Add padding to prevent content from being hidden behind the fixed search bar */}
+                {showStickySearchBar && (!isMobile || (!isCategorySidebarOpen && !isBagSidebarOpen)) && (
+                  <div className="h-[72px]"></div>
+                )}
               </div>
 
               {/* Club List */}
@@ -900,7 +978,6 @@ const App: React.FC = () => {
               {totalPages > 1 && (
                 <div className="mt-8 flex justify-center">
                   <nav className="inline-flex items-center gap-1 bg-white p-2 rounded-full shadow-sm border border-gray-200">
-                    {/* Previous Button */}
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
@@ -915,7 +992,6 @@ const App: React.FC = () => {
                       </svg>
                     </button>
 
-                    {/* Page Numbers */}
                     {adjustedStartPage > 1 && (
                       <>
                         <button
@@ -958,7 +1034,6 @@ const App: React.FC = () => {
                       </>
                     )}
 
-                    {/* Next Button */}
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
@@ -984,6 +1059,7 @@ const App: React.FC = () => {
           onAdd={handleAddToBag}
           isPinned={isBagPinned}
           onPinToggle={() => setIsBagPinned(!isBagPinned)}
+          onOpenChange={setIsBagSidebarOpen}
           defaultOpen={selectedClubs.length > 0 || isBagPinned}
           clubsData={typedClubsData.clubs}
         />
@@ -1003,6 +1079,12 @@ const App: React.FC = () => {
         onSelectVariant={(variant) => setSelectedVariant(variant)}
         isSelected={selectedVariant ? selectedClubs.some(c => c.id === selectedVariant.id) : false}
         isBagFull={selectedClubs.length >= 14}
+      />
+      <MyClubsModal
+        isOpen={isMyClubsModalOpen}
+        onClose={() => setIsMyClubsModalOpen(false)}
+        onSave={handleSaveMyClubsLofts}
+        initialLofts={myClubsLofts}
       />
     </div>
   );

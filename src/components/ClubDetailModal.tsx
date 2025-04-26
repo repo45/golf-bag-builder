@@ -105,7 +105,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
           bgColor: "bg-emerald-100 text-emerald-800",
           icon: "★",
         };
-      case "Medium Handicapper":
+      case "Mid Handicapper":
         return {
           bgColor: "bg-sky-100 text-sky-800",
           icon: "➔",
