@@ -7,9 +7,11 @@ interface SelectedClubsSidebarProps {
   onAdd: (club: Club & { image_path: string; handicapperlevel: string }) => void;
   isPinned: boolean;
   onPinToggle: () => void;
-  onOpenChange: (isOpen: boolean) => void; // New prop to notify parent of open state changes
+  onOpenChange: (isOpen: boolean) => void;
+  onCheckout: () => void;
   defaultOpen: boolean;
   clubsData: ClubModel[];
+  onClearBag: () => void;
 }
 
 const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
@@ -19,8 +21,10 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
   isPinned,
   onPinToggle,
   onOpenChange,
+  onCheckout,
   defaultOpen,
   clubsData,
+  onClearBag,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(defaultOpen);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(true);
@@ -34,12 +38,12 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
   useEffect(() => {
     console.log('Selected Clubs in Sidebar:', selectedClubs);
     selectedClubs.forEach(club => {
-      console.log(`Club ID: ${club.id}, Image Path: /${club.image_path}, Name: ${club.brand} ${club.model}, Loft: ${club.loft || 'N/A'}, Handicapper Level: ${club.handicapperlevel}`);
+      console.log(`Club ID: ${club.id}, Image Path: /${club.image_path}, Name: ${club.brand} ${club.model}, Loft: ${club.loft || 'N/A'}, Skill Level: ${club.handicapperlevel}`);
     });
   }, [selectedClubs]);
 
   useEffect(() => {
-    onOpenChange(isOpen); // Notify parent when isOpen changes
+    onOpenChange(isOpen);
   }, [isOpen, onOpenChange]);
 
   const totalPrice = selectedClubs.reduce((sum, club) => sum + club.price, 0);
@@ -261,14 +265,14 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
     <div>
       {/* Ribbon on all screens */}
       <div
-        className={`fixed top-1/2 right-0 transform -translate-y-1/2 w-10 h-32 bg-gray-200 text-gray-800 flex items-center justify-center cursor-pointer z-60 rounded-l-md shadow-md hover:scale-105 transition-all duration-300 ${
+        className={`fixed top-1/2 right-0 transform -translate-y-1/2 w-8 h-24 bg-gray-200 text-gray-800 flex items-center justify-center cursor-pointer z-[70] rounded-l-md shadow-md hover:scale-105 transition-all duration-300 ${
           isOpen ? "bg-green-600 text-white hover:bg-green-700" : "hover:bg-gray-300"
         } ${isPinned ? "right-[320px]" : ""}`}
         onClick={() => !isPinned && setIsOpen(!isOpen)}
       >
-        <div className="transform -rotate-90 flex items-center space-x-2">
+        <div className="transform -rotate-90 flex items-center space-x-1">
           <svg
-            className="w-5 h-5"
+            className="w-4 h-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -281,28 +285,28 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
               d="M3 3h2l1 2h13l-2 9H6L3 3zm3 12a2 2 0 100 4 2 2 0 000-4zm11 0a2 2 0 100 4 2 2 0 000-4z"
             />
           </svg>
-          <span className="text-sm font-medium whitespace-nowrap">
-            Your Bag ({selectedClubs.length})
+          <span className="text-xs font-medium whitespace-nowrap">
+            Build Bag ({selectedClubs.length})
           </span>
         </div>
       </div>
 
       {/* Sidebar content */}
       <div
-        className={`fixed top-0 right-0 h-full bg-white shadow-md transition-all duration-500 ease-in-out z-60 ${
+        className={`fixed top-0 right-0 h-full bg-white shadow-md transition-transform duration-500 ease-in-out z-[60] ${
           isOpen || isPinned
-            ? "w-4/5 md:w-80 right-0 visibility-visible overflow-y-auto opacity-100"
-            : "w-0 right-[-100%] visibility-hidden overflow-hidden opacity-0"
+            ? "w-4/5 md:w-80 translate-x-0"
+            : "w-0 translate-x-full"
         }`}
       >
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-4 h-full overflow-y-auto">
+          <div className="flex items-center justify-between mb-3">
             <button
               className="text-gray-600 hover:text-gray-800"
               onClick={() => !isPinned && setIsOpen(false)}
             >
               <svg
-                className="w-6 h-6"
+                className="w-5 h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -321,7 +325,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
             >
               {isPinned ? (
                 <svg
-                  className="w-6 h-6 text-green-600"
+                  className="w-5 h-5 text-green-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -335,7 +339,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                 </svg>
               ) : (
                 <svg
-                  className="w-6 h-6"
+                  className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -353,39 +357,39 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
           </div>
           {(isOpen || isPinned) && (
             <>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">
-                  Your Bag
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-800">
+                  Build Your Bag
                 </h2>
                 <div className="flex items-center">
-                  <span className="text-gray-600">
+                  <span className="text-gray-600 text-xs">
                     {selectedClubs.length} Clubs
                   </span>
-                  <span className="ml-2 text-green-600 font-semibold">
+                  <span className="ml-2 text-green-600 font-semibold text-xs">
                     £{totalPrice.toFixed(2)}
                   </span>
                 </div>
               </div>
               {selectedClubs.length === 0 ? (
-                <p className="text-gray-600 italic">
-                  No clubs selected. Start building your bag!
+                <p className="text-gray-600 italic text-xs">
+                  No clubs selected. Start building your bag by adding clubs!
                 </p>
               ) : (
                 <>
-                  <ul className="space-y-4">
+                  <ul className="space-y-3">
                     {sortedClubs.map((club) => (
                       <li
                         key={club.id}
-                        className="flex items-center bg-gray-50 p-3 rounded-lg shadow-sm"
+                        className="flex items-center bg-gray-50 p-2 rounded-lg shadow-sm"
                       >
-                        <div className="relative w-16 h-[2.67rem] mr-3">
+                        <div className="relative w-12 h-[2rem] mr-2">
                           {imageLoadingStates[club.id] !== false && (
                             <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
                           )}
                           <img
                             src={`/${club.image_path}`}
                             alt={`${club.brand} ${club.model}`}
-                            className="absolute top-0 left-0 w-full h-full object-cover rounded-lg max-w-[4rem] max-h-[2.67rem]"
+                            className="absolute top-0 left-0 w-full h-full object-cover rounded-lg max-w-[3rem] max-h-[2rem]"
                             onLoad={() =>
                               setImageLoadingStates(prev => ({
                                 ...prev,
@@ -394,7 +398,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                             }
                             onError={(e) => {
                               console.error(`Failed to load image: /${club.image_path}`);
-                              e.currentTarget.src = "https://via.placeholder.com/64x43?text=Image+Not+Found";
+                              e.currentTarget.src = "https://via.placeholder.com/48x32?text=Image+Not+Found";
                               setImageLoadingStates(prev => ({
                                 ...prev,
                                 [club.id]: false,
@@ -403,39 +407,39 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                           />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800">
+                          <p className="text-xs font-medium text-gray-800">
                             {club.type}{' '}
                             {club.subtype ? `(${club.subtype})` : ''}{' '}
                             {club.specifictype ? `- ${club.specifictype}` : ''}:{' '}
                             {club.brand} {club.model}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs text-gray-600">
                             Loft: {club.loft ?? 'N/A'}
                           </p>
                           {club.shaftmaterial && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs text-gray-600">
                               Shaft Material: {club.shaftmaterial}
                             </p>
                           )}
                           {club.setmakeup && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs text-gray-600">
                               Set Makeup: {club.setmakeup}
                             </p>
                           )}
                           {club.length && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs text-gray-600">
                               Length: {club.length}
                             </p>
                           )}
                           {club.bounce && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs text-gray-600">
                               Bounce: {club.bounce}
                             </p>
                           )}
-                          <p className="text-sm text-gray-600">
-                            Handicapper Level: {club.handicapperlevel}
+                          <p className="text-xs text-gray-600">
+                            Skill Level: {club.handicapperlevel}
                           </p>
-                          <p className="text-sm text-green-600">
+                          <p className="text-xs text-green-600">
                             £{club.price.toFixed(2)}
                           </p>
                         </div>
@@ -444,7 +448,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                           onClick={() => onRemove(club.id)}
                         >
                           <svg
-                            className="w-5 h-5"
+                            className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -460,14 +464,28 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="mt-3 flex gap-2">
                     <button
-                      className="flex items-center justify-between w-full text-lg font-semibold text-gray-800"
+                      className="flex-1 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-xs"
+                      onClick={onCheckout}
+                    >
+                      Checkout
+                    </button>
+                    <button
+                      className="flex-1 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs"
+                      onClick={onClearBag}
+                    >
+                      Clear Bag
+                    </button>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <button
+                      className="flex items-center justify-between w-full text-base font-semibold text-gray-800"
                       onClick={() => setShowSuggestions(!showSuggestions)}
                     >
                       <span>Gapping Suggestions</span>
                       <svg
-                        className={`w-5 h-5 transform transition-transform ${
+                        className={`w-4 h-4 transform transition-transform ${
                           showSuggestions ? "rotate-180" : ""
                         }`}
                         fill="none"
@@ -486,9 +504,9 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                       <>
                         {gaps.length > 0 ? (
                           <>
-                            <p className="text-base font-semibold text-red-600 flex items-center mt-2">
+                            <p className="text-xs font-semibold text-red-600 flex items-center mt-2">
                               <svg
-                                className="w-6 h-6 mr-2"
+                                className="w-4 h-4 mr-1"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -505,7 +523,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                             {gaps.map((gap, i) => (
                               <p
                                 key={i}
-                                className="text-sm text-gray-600 mt-2"
+                                className="text-xs text-gray-600 mt-1"
                               >
                                 Large gap ({gap.gap.toFixed(1)}°) between{' '}
                                 {sortedClubs[gap.index].type}{' '}
@@ -522,9 +540,9 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                             ))}
                             {recommendations.length > 0 ? (
                               <>
-                                <p className="text-base font-semibold text-gray-800 mt-4 flex items-center">
+                                <p className="text-xs font-semibold text-gray-800 mt-3 flex items-center">
                                   <svg
-                                    className="w-6 h-6 mr-2 text-green-600"
+                                    className="w-4 h-4 mr-1 text-green-600"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -568,7 +586,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                           }}
                                         />
                                       </div>
-                                      <p className="text-sm text-gray-600">
+                                      <p className="text-xs text-gray-600">
                                         {club.type}{' '}
                                         {club.subtype ? `(${club.subtype})` : ''}:{' '}
                                         {club.brand} {club.model} ({club.loft ?? 'N/A'})
@@ -579,7 +597,7 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                       onClick={() => onAdd(club)}
                                     >
                                       <svg
-                                        className="w-5 h-5"
+                                        className="w-4 h-4"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -596,13 +614,13 @@ const SelectedClubsSidebar: React.FC<SelectedClubsSidebarProps> = ({
                                 ))}
                               </>
                             ) : (
-                              <p className="text-sm text-gray-600 mt-2 italic">
+                              <p className="text-xs text-gray-600 mt-1 italic">
                                 No suitable clubs found to fill the loft gap. Consider a club with a loft around {gaps[0]?.recommendedLoft.toFixed(1)}°.
                               </p>
                             )}
                           </>
                         ) : (
-                          <p className="text-sm text-gray-600 mt-2 italic">
+                          <p className="text-xs text-gray-600 mt-1 italic">
                             No significant loft gaps detected.
                           </p>
                         )}

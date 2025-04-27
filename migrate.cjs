@@ -29,7 +29,8 @@ const migrate = async () => {
         subType VARCHAR(50),
         specificType VARCHAR(50),
         handicapperLevel VARCHAR(50),
-        image VARCHAR(255)
+        image VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log('Clubs table created');
@@ -47,13 +48,14 @@ const migrate = async () => {
         bounce VARCHAR(50),
         description TEXT,
         source VARCHAR(255),
-        url TEXT
+        url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log('Variants table created');
 
     console.log('Loading clubs.json...');
-    const clubsData = JSON.parse(fs.readFileSync('./src/data/clubs.json', 'utf8'));
+    const clubsData = JSON.parse(fs.readFileSync('./data/clubs.json', 'utf8'));
     console.log(`Loaded ${clubsData.clubs.length} clubs from clubs.json`);
 
     console.log('Clearing existing data from variants table...');
@@ -69,20 +71,30 @@ const migrate = async () => {
     for (const club of clubsData.clubs) {
       clubCount++;
       console.log(`Inserting club ${clubCount}/${clubsData.clubs.length}: ${club.brand} ${club.model}`);
+
+      // Map old handicapper levels to new ones
+      let mappedHandicapperLevel = club.handicapperLevel;
+      if (club.handicapperLevel === "Low Handicapper") {
+        mappedHandicapperLevel = "Advanced";
+      } else if (club.handicapperLevel === "Mid Handicapper") {
+        mappedHandicapperLevel = "Intermediate";
+      } else if (club.handicapperLevel === "High Handicapper") {
+        mappedHandicapperLevel = "Beginner";
+      }
+
       const clubRes = await client.query(
-        'INSERT INTO clubs (brand, model, type, category, subType, specificType, handicapperLevel, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-        [club.brand, club.model, club.type, club.category, club.subType, club.specificType, club.handicapperLevel, club.image]
+        'INSERT INTO clubs (brand, model, type, category, subType, specificType, handicapperLevel, image, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING id',
+        [club.brand, club.model, club.type, club.category, club.subType, club.specificType, mappedHandicapperLevel, club.image]
       );
       const clubId = clubRes.rows[0].id;
 
       for (const variant of club.variants) {
-        // Extract retailer and URL from prices array (assuming single retailer per variant)
         const retailer = variant.prices && variant.prices.length > 0 ? variant.prices[0].retailer : null;
         const url = variant.prices && variant.prices.length > 0 ? variant.prices[0].url : null;
         const price = variant.prices && variant.prices.length > 0 ? variant.prices[0].price : variant.price;
 
         await client.query(
-          'INSERT INTO variants (club_id, price, loft, shaftMaterial, setMakeup, length, bounce, description, source, url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+          'INSERT INTO variants (club_id, price, loft, shaftMaterial, setMakeup, length, bounce, description, source, url, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)',
           [clubId, price, variant.loft, variant.shaftMaterial, variant.setMakeup, variant.length, variant.bounce, variant.description, retailer, url]
         );
       }

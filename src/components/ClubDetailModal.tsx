@@ -32,7 +32,6 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
 
   const [isImageLoading, setIsImageLoading] = useState(true);
 
-  // Close modal on Escape key press
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -43,7 +42,6 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
 
   if (!clubModel || !variant) return null;
 
-  // Calculate the cheapest price among all variants and find the cheapest variant
   const allPrices = clubModel.variants.map(v => v.price);
   const cheapestPriceAmongVariants = allPrices.length > 0 ? Math.min(...allPrices) : variant.price;
   const cheapestVariant = clubModel.variants.find(v => v.price === cheapestPriceAmongVariants) || variant;
@@ -92,30 +90,29 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
       handicapperlevel: clubModel.handicapperlevel,
     };
     onReplace(oldClubId, newClub);
-    onSelectVariant(newVariant); // Update the displayed variant in the modal
+    onSelectVariant(newVariant);
   };
 
   const handleRemoveFromBag = () => {
     onRemove(variant.id);
   };
 
-  // Determine badge color and icon based on handicapperlevel
   const getHandicapperLevelStyles = (level: string) => {
     switch (level) {
-      case "Low Handicapper":
+      case "Beginner":
         return {
-          bgColor: "bg-emerald-100 text-emerald-800",
-          icon: "★",
+          bgColor: "bg-green-100 text-green-800",
+          icon: "🚩",
         };
-      case "Mid Handicapper":
+      case "Intermediate":
         return {
-          bgColor: "bg-sky-100 text-sky-800",
+          bgColor: "bg-yellow-100 text-yellow-800",
           icon: "➔",
         };
-      case "High Handicapper":
+      case "Advanced":
         return {
-          bgColor: "bg-amber-100 text-amber-800",
-          icon: "🚩",
+          bgColor: "bg-blue-100 text-blue-800",
+          icon: "★",
         };
       default:
         return {
@@ -133,10 +130,9 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-md max-h-[90vh] overflow-y-auto relative"
+        className="bg-white rounded-lg p-6 max-w-4xl w-[90%] mx-4 shadow-md max-h-[95vh] overflow-y-auto relative"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
         <button
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
           onClick={onClose}
@@ -156,140 +152,149 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
           </svg>
         </button>
 
-        {/* Selected Variant Details */}
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">
-          {variant.brand} {variant.model}
-        </h2>
-        <p className="text-gray-600 mb-4">
-          {variant.type}{" "}
-          {variant.subtype ? `(${variant.subtype})` : ""}{" "}
-          {variant.specifictype ? `- ${variant.specifictype}` : ""}
-        </p>
-        <div className="relative w-[18rem] h-[12rem] mx-auto">
-          {isImageLoading && (
-            <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
-          )}
-          <img
-            src={imageSrc}
-            alt={`${variant.brand} ${variant.model}`}
-            className="absolute top-0 left-0 w-full h-full object-cover object-center rounded-lg"
-            loading="lazy"
-            onLoad={() => setIsImageLoading(false)}
-            onError={(e) => {
-              console.error(`Failed to load image: ${imageSrc}`);
-              e.currentTarget.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
-              setIsImageLoading(false);
-            }}
-          />
-        </div>
-        <div className="mb-4 mt-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-            Price Comparisons
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                <tr>
-                  <th className="px-4 py-2">Retailer</th>
-                  <th className="px-4 py-2">Price</th>
-                  <th className="px-4 py-2">Link</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-2">{cheapestVariant.source || "Unknown Retailer"}</td>
-                  <td className="px-4 py-2 text-green-600 font-semibold">
-                    £{cheapestVariant.price.toFixed(2)}
-                    <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                      Cheapest
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    <a href={cheapestVariant.url || `https://${cheapestVariant.source || "unknown"}.com`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      Buy Now
-                    </a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Left Side: Image and Add/Remove Buttons */}
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              {variant.brand} {variant.model}
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {variant.type}{" "}
+              {variant.subtype ? `(${variant.subtype})` : ""}{" "}
+              {variant.specifictype ? `- ${variant.specifictype}` : ""}
+            </p>
+            <div className="relative w-[18rem] h-[12rem] mx-auto">
+              {isImageLoading && (
+                <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
+              )}
+              <img
+                src={imageSrc}
+                alt={`${variant.brand} ${variant.model}`}
+                className="absolute top-0 left-0 w-full h-full object-cover object-center rounded-lg"
+                loading="lazy"
+                onLoad={() => setIsImageLoading(false)}
+                onError={(e) => {
+                  console.error(`Failed to load image: ${imageSrc}`);
+                  e.currentTarget.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
+                  setIsImageLoading(false);
+                }}
+              />
+            </div>
+            <div className="mt-4 flex space-x-3">
+              {isSelected ? (
+                <button
+                  className="flex-1 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition text-sm"
+                  onClick={handleRemoveFromBag}
+                >
+                  Remove from Bag
+                </button>
+              ) : (
+                <button
+                  className={`flex-1 py-2 rounded-lg text-white transition text-sm ${
+                    isBagFull
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
+                  onClick={handleAddToBag}
+                  disabled={isBagFull}
+                >
+                  {isBagFull ? "Bag Full" : "Add to Bag"}
+                </button>
+              )}
+              <button
+                className="flex-1 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition text-sm"
+                onClick={onClose}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Right Side: Details */}
+          <div className="flex-1">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Price Comparisons
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-600">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                    <tr>
+                      <th className="px-3 py-2">Retailer</th>
+                      <th className="px-3 py-2">Price</th>
+                      <th className="px-3 py-2">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b hover:bg-gray-50">
+                      <td className="px-3 py-2">{cheapestVariant.source || "Unknown Retailer"}</td>
+                      <td className="px-3 py-2 text-green-600 font-semibold">
+                        £{cheapestVariant.price.toFixed(2)}
+                        <span className="ml-1 inline-block bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded">
+                          Cheapest
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <a href={cheapestVariant.url || `https://${cheapestVariant.source || "unknown"}.com`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                          Buy Now
+                        </a>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                Cheapest Price Among Variants
+              </h3>
+              <p className="text-lg font-semibold text-green-600">
+                £{cheapestPriceAmongVariants.toFixed(2)}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Loft:</span> {variant.loft || "N/A"}
+              </p>
+              {variant.shaftmaterial && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Shaft Material:</span> {variant.shaftmaterial}
+                </p>
+              )}
+              {variant.setmakeup && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Set Makeup:</span> {variant.setmakeup}
+                </p>
+              )}
+              {variant.length && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Length:</span> {variant.length}
+                </p>
+              )}
+              {variant.bounce && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Bounce:</span> {variant.bounce}
+                </p>
+              )}
+              <p className="text-lg font-semibold text-green-600">
+                Selected Variant Price: £{variant.price.toFixed(2)}
+              </p>
+              <div className="mt-2">
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-medium ${bgColor}`}>
+                  {icon && <span className="mr-1">{icon}</span>}
+                  Skill Level: {clubModel.handicapperlevel}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Category:</span> {clubModel.category}
+              </p>
+              {variant.description && (
+                <p className="text-sm text-gray-600 mt-2">{variant.description}</p>
+              )}
+            </div>
           </div>
         </div>
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-            Cheapest Price Among Variants
-          </h3>
-          <p className="text-lg font-semibold text-green-600">
-            £{cheapestPriceAmongVariants.toFixed(2)}
-          </p>
-        </div>
-        <p className="text-sm text-gray-600">
-          Loft: {variant.loft || "N/A"}
-        </p>
-        {variant.shaftmaterial && (
-          <p className="text-sm text-gray-600">
-            Shaft Material: {variant.shaftmaterial}
-          </p>
-        )}
-        {variant.setmakeup && (
-          <p className="text-sm text-gray-600">
-            Set Makeup: {variant.setmakeup}
-          </p>
-        )}
-        {variant.length && (
-          <p className="text-sm text-gray-600">
-            Length: {variant.length}
-          </p>
-        )}
-        {variant.bounce && (
-          <p className="text-sm text-gray-600">
-            Bounce: {variant.bounce}
-          </p>
-        )}
-        <p className="text-lg font-semibold text-green-600 mt-2">
-          Selected Variant Price: £{variant.price.toFixed(2)}
-        </p>
-        <div className="mt-2">
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-sm font-medium ${bgColor}`}>
-            {icon && <span className="mr-1">{icon}</span>}
-            Handicapper Level: {clubModel.handicapperlevel}
-          </span>
-        </div>
-        <p className="text-sm text-gray-600 mt-2">
-          Category: {clubModel.category}
-        </p>
-        <p className="text-gray-600 mt-4">{variant.description}</p>
 
-        {/* Add/Remove Button for Selected Variant */}
-        <div className="mt-6 flex space-x-4">
-          {isSelected ? (
-            <button
-              className="flex-1 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-              onClick={handleRemoveFromBag}
-            >
-              Remove from Bag
-            </button>
-          ) : (
-            <button
-              className={`flex-1 py-2 rounded-lg text-white transition ${
-                isBagFull
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
-              }`}
-              onClick={handleAddToBag}
-              disabled={isBagFull}
-            >
-              {isBagFull ? "Bag Full" : "Add to Bag"}
-            </button>
-          )}
-          <button
-            className="flex-1 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-            onClick={onClose}
-          >
-            Close
-          </button>
-        </div>
-
-        {/* Variants Table */}
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">
             Other Variants
@@ -298,16 +303,16 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
             <table className="w-full text-sm text-left text-gray-600">
               <thead className="text-xs text-gray-700 uppercase bg-gray-100">
                 <tr>
-                  <th className="px-4 py-2">Loft</th>
-                  <th className="px-4 py-2">Handedness</th>
-                  <th className="px-4 py-2">Flex</th>
-                  <th className="px-4 py-2">Condition</th>
-                  <th className="px-4 py-2">Shaft Material</th>
-                  <th className="px-4 py-2">Set Makeup</th>
-                  <th className="px-4 py-2">Length</th>
-                  <th className="px-4 py-2">Bounce</th>
-                  <th className="px-4 py-2">Price</th>
-                  <th className="px-4 py-2">Action</th>
+                  <th className="px-3 py-2">Loft</th>
+                  <th className="px-3 py-2">Handedness</th>
+                  <th className="px-3 py-2">Flex</th>
+                  <th className="px-3 py-2">Condition</th>
+                  <th className="px-3 py-2">Shaft Material</th>
+                  <th className="px-3 py-2">Set Makeup</th>
+                  <th className="px-3 py-2">Length</th>
+                  <th className="px-3 py-2">Bounce</th>
+                  <th className="px-3 py-2">Price</th>
+                  <th className="px-3 py-2">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,16 +323,16 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                       v.id === variant.id ? "bg-gray-200" : ""
                     }`}
                   >
-                    <td className="px-4 py-2">{v.loft || "N/A"}</td>
-                    <td className="px-2 py-2">{v.description.match(/Handedness: ([^\s,]+)/)?.[1] || "N/A"}</td>
-                    <td className="px-2 py-2">{v.description.match(/Flex: ([^\s,]+)/)?.[1] || "N/A"}</td>
-                    <td className="px-2 py-2">{v.description.match(/Condition: ([^\s,]+)/)?.[1] || "N/A"}</td>
-                    <td className="px-2 py-2">{v.shaftmaterial || "N/A"}</td>
-                    <td className="px-2 py-2">{v.setmakeup || "N/A"}</td>
-                    <td className="px-2 py-2">{v.length || "N/A"}</td>
-                    <td className="px-2 py-2">{v.bounce || "N/A"}</td>
-                    <td className="px-2 py-2">£{v.price.toFixed(2)}</td>
-                    <td className="px-2 py-2">
+                    <td className="px-3 py-2">{v.loft || "N/A"}</td>
+                    <td className="px-3 py-2">{v.description.match(/Handedness: ([^\s,]+)/)?.[1] || "N/A"}</td>
+                    <td className="px-3 py-2">{v.description.match(/Flex: ([^\s,]+)/)?.[1] || "N/A"}</td>
+                    <td className="px-3 py-2">{v.description.match(/Condition: ([^\s,]+)/)?.[1] || "N/A"}</td>
+                    <td className="px-3 py-2">{v.shaftmaterial || "N/A"}</td>
+                    <td className="px-3 py-2">{v.setmakeup || "N/A"}</td>
+                    <td className="px-3 py-2">{v.length || "N/A"}</td>
+                    <td className="px-3 py-2">{v.bounce || "N/A"}</td>
+                    <td className="px-3 py-2">£{v.price.toFixed(2)}</td>
+                    <td className="px-3 py-2">
                       <div className="flex space-x-2">
                         <button
                           className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition"
@@ -335,7 +340,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                           title="View Details"
                         >
                           <svg
-                            className="w-5 h-5"
+                            className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -361,7 +366,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                             title="Replace in Bag"
                           >
                             <svg
-                              className="w-5 h-5"
+                              className="w-4 h-4"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -386,7 +391,7 @@ const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                             title="Add to Bag"
                           >
                             <svg
-                              className="w-5 h-5"
+                              className="w-4 h-4"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"

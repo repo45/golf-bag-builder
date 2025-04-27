@@ -4,11 +4,13 @@ import ClubCard from "./components/ClubCard";
 import ClubDetailModal from "./components/ClubDetailModal";
 import SelectedClubsSidebar from "./components/SelectedClubsSidebar";
 import MyClubsModal from "./components/MyClubsModal";
+import CheckoutSummaryModal from "./components/CheckoutSummaryModal";
 import { Club, ClubModel } from "./types/club";
 import grassBg from "./assets/grass_bg_1920x1080_png.png";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import debounce from "lodash/debounce";
+import { ShoppingBagIcon, FunnelIcon } from "@heroicons/react/24/outline";
 
 // Define the structure of the API response
 interface ClubsData {
@@ -127,7 +129,6 @@ const App: React.FC = () => {
   const [filterPriceMin, setFilterPriceMin] = useState<string>('');
   const [filterPriceMax, setFilterPriceMax] = useState<string>('');
   const [isSortFilterOpen, setIsSortFilterOpen] = useState<boolean>(true);
-  const [showStickySearchBar, setShowStickySearchBar] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
   const pageSizeOptions = [25, 50, 75, 100];
@@ -136,6 +137,7 @@ const App: React.FC = () => {
   const [recommendedLofts, setRecommendedLofts] = useState<number[]>([]);
   const [filterByMyClubsGaps, setFilterByMyClubsGaps] = useState<boolean>(false);
   const [isBagSidebarOpen, setIsBagSidebarOpen] = useState<boolean>(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
 
   // Fetch club data from API on mount
@@ -157,9 +159,11 @@ const App: React.FC = () => {
 
     fetchClubs();
   }, []);
+
   useEffect(() => {
     console.log("clubsData after fetch:", clubsData);
   }, [clubsData]);
+
   // Load lofts from local storage on mount
   useEffect(() => {
     const savedLofts = localStorage.getItem('myClubsLofts');
@@ -186,27 +190,8 @@ const App: React.FC = () => {
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize(); // Initial check
+    handleResize();
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Scroll listener to show/hide sticky search bar
-  useEffect(() => {
-    const handleScroll = () => {
-      const banner = document.getElementById('banner');
-      if (banner) {
-        const bannerBottom = banner.getBoundingClientRect().bottom;
-        const headerHeight = document.querySelector('header')?.offsetHeight || 64;
-        const shouldShow = bannerBottom <= headerHeight;
-        console.log('Scroll Debug:', { bannerBottom, headerHeight, shouldShow });
-        setShowStickySearchBar(shouldShow);
-      } else {
-        console.log('Banner element not found');
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Debug sidebar states
@@ -240,6 +225,21 @@ const App: React.FC = () => {
     });
     return Array.from(levelSet).sort();
   }, [clubsData.clubs]);
+
+  // Calculate active filter count for FAB badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory !== "All") count++;
+    if (selectedSubItem) count++;
+    if (selectedSubSubItem) count++;
+    if (filterHandedness) count++;
+    if (filterBrand) count++;
+    if (filterHandicapperLevel) count++;
+    if (filterPriceMin) count++;
+    if (filterPriceMax) count++;
+    if (filterByMyClubsGaps) count++;
+    return count;
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, filterByMyClubsGaps]);
 
   // Function to calculate recommended lofts based on user-input lofts
   const calculateRecommendedLofts = (lofts: number[]) => {
@@ -285,19 +285,17 @@ const App: React.FC = () => {
 
     return clubsData.clubs
       .filter(clubModel => {
-        // Use `type` to match `selectedCategory`
         const matchesCategory = selectedCategory === "All" || clubModel.type === selectedCategory;
 
-        // Sub-item filtering
         const matchesSubItem = selectedSubItem
           ? selectedCategory === "Hybrid"
             ? selectedSubItem === "Utility Iron"
               ? clubModel.specifictype === "Utility Iron"
               : clubModel.variants.length > 0 && parseFloat(clubModel.variants[0].loft?.replace('°', '') || '0') === parseFloat(selectedSubItem.split(" ")[0])
             : selectedCategory === "Fairway Wood"
-              ? clubModel.variants.length > 0 && clubModel.variants[0].loft === selectedSubItem // Adjust below
+              ? clubModel.variants.length > 0 && clubModel.variants[0].loft === selectedSubItem
               : selectedCategory === "Wedge"
-                ? clubModel.specifictype === selectedSubItem // e.g., "Gap Wedge"
+                ? clubModel.specifictype === selectedSubItem
                 : selectedCategory === "Iron Set"
                   ? selectedSubSubItem
                     ? clubModel.subtype === "Individual" && clubModel.specifictype === selectedSubSubItem
@@ -368,7 +366,9 @@ const App: React.FC = () => {
         }
         return 0;
       });
-  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption, filterByMyClubsGaps, recommendedLofts, clubsData.clubs, loading]);  // Pagination logic
+  }, [selectedCategory, selectedSubItem, selectedSubSubItem, debouncedSearchQuery, filterHandedness, filterBrand, filterHandicapperLevel, filterPriceMin, filterPriceMax, sortOption, filterByMyClubsGaps, recommendedLofts, clubsData.clubs, loading]);
+
+  // Pagination logic
   const totalItems = filteredClubModels.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
@@ -494,7 +494,7 @@ const App: React.FC = () => {
   const totalPrice = selectedClubs.reduce((sum, club) => sum + club.price, 0);
 
   if (loading) {
-    return <div className="text-center py-10">Loading clubs...</div>;
+    return <div className="text-center py-10 text-gray-900">Loading clubs...</div>;
   }
 
   if (error) {
@@ -502,17 +502,17 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <ToastContainer position="top-right" autoClose={3000} />
-      <header className="flex bg-gray-100 transition-colors duration-150 top-0 z-50 w-full sticky py-4 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between w-full">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-800">
-              Golf Bag Builder
-            </h1>
+      {/* Header */}
+      <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-50 w-full py-2 px-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          {/* Left: Title and My Clubs Button */}
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Golf Bag Builder</h1>
             <button
               onClick={() => setIsMyClubsModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+              className="flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-all duration-200 text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -520,60 +520,63 @@ const App: React.FC = () => {
               My Clubs
             </button>
           </div>
-          <nav className="hidden md:flex space-x-6">
-            <a href="#" className="text-gray-600 hover:text-gray-800">
-              Clubs
-            </a>
-            <a href="#" className="text-gray-600 hover:text-gray-800">
-              Shops
-            </a>
-            <a href="#" className="text-gray-600 hover:text-gray-800">
-              Offers
-            </a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <svg
-                className="w-6 h-6 text-gray-600 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                />
+
+          {/* Center: Search Bar (Hidden on Mobile when Sidebar Open) */}
+          <div className="hidden md:flex flex-1 max-w-md relative">
+            <input
+              type="text"
+              placeholder="Search clubs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full py-1.5 px-4 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white shadow-sm text-gray-900 placeholder-gray-500"
+            />
+            <button
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span className="text-gray-600">
-                {selectedClubs.length} Clubs
-              </span>
-              <span className="ml-2 text-green-600 font-semibold">
-                £{totalPrice.toFixed(2)}
-              </span>
+            </button>
+          </div>
+
+          {/* Right: Bag Summary and Hamburger (Mobile) */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <ShoppingBagIcon className="w-5 h-5 text-gray-600" />
+              <span className="text-sm text-gray-600">{selectedClubs.length} Clubs</span>
+              <span className="text-sm font-semibold text-emerald-600">£{totalPrice.toFixed(2)}</span>
             </div>
             <button
               className="md:hidden text-gray-600 hover:text-gray-800"
               onClick={() => setIsCategorySidebarOpen(!isCategorySidebarOpen)}
+              aria-label="Toggle filters"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
         </div>
+
+        {/* Mobile Search Bar */}
+        <div className="md:hidden mt-1 max-w-md mx-auto relative">
+          <input
+            type="text"
+            placeholder="Search clubs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full py-1.5 px-4 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white shadow-sm text-gray-900 placeholder-gray-500"
+          />
+          <button
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-all duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </div>
       </header>
+
       <div className="relative">
         <div
           className="relative min-h-[calc(100vh-64px)] flex w-full flex-col items-center justify-center p-5 text-center md:px-20 lg:space-y-10"
@@ -593,12 +596,12 @@ const App: React.FC = () => {
               inset: "0px",
               color: "transparent",
             }}
-          />
+        />
           <div className="relative flex w-full flex-col items-center justify-center p-5 text-center md:px-20 lg:space-y-10">
-            <h1 className="text-2xl lg:text-5xl font-extrabold text-gray-800">
+            <h1 className="text-2xl lg:text-5xl font-extrabold text-gray-900">
               Build Your Perfect Golf Bag
             </h1>
-            <p className="text-base lg:text-2xl text-gray-600">
+            <p className="text-base lg:text-2xl text-gray-500">
               Select from a wide range of premium clubs
             </p>
             <div className="w-full max-w-md mt-4">
@@ -608,10 +611,10 @@ const App: React.FC = () => {
                   placeholder="Search your club from here"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full py-2 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600"
+                  className="w-full py-2 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-600 text-gray-900 placeholder-gray-500"
                 />
                 <button
-                  className="absolute right-0 top-0 h-full px-4 bg-green-600 text-white rounded-r-md hover:bg-green-700 transition-colors"
+                  className="absolute right-0 top-0 h-full px-4 bg-emerald-600 text-white rounded-r-md hover:bg-emerald-700 transition-all duration-200"
                   onClick={() => setSearchQuery(searchQuery)}
                 >
                   Search
@@ -620,20 +623,300 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+
         <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)]">
-          <nav
-            className={`w-full md:w-64 bg-white md:h-[calc(100vh-64px)] md:sticky md:top-[64px] p-6 shadow-md flex-shrink-0 md:block overflow-y-auto z-50 ${isCategorySidebarOpen ? "block" : "hidden md:block"
-              }`}
+          {/* Mobile Filter Drawer */}
+          <div
+            className={`fixed inset-0 bg-gray-800 bg-opacity-50 z-50 md:hidden transition-opacity duration-300 ease-in-out ${
+              isCategorySidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            onClick={() => setIsCategorySidebarOpen(false)}
           >
-            <ul className="mb-6">
+            <nav
+              className={`w-4/5 max-w-sm bg-gray-50 h-full p-4 shadow-xl transform transition-transform duration-300 ease-in-out ${
+                isCategorySidebarOpen ? "translate-x-0" : "-translate-x-full"
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Filters</h2>
+                <button
+                  onClick={() => setIsCategorySidebarOpen(false)}
+                  className="text-gray-600 hover:text-gray-800"
+                  aria-label="Close filters"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <ul className="mb-4">
+                {categories.map(category => (
+                  <li key={category.name} className="mb-1">
+                    <div className="flex items-center justify-between">
+                      <button
+                        className={`flex-1 text-left py-1.5 px-3 rounded-lg flex items-center transition-all duration-200 ${
+                          selectedCategory === category.name
+                            ? "bg-emerald-100 text-emerald-800 font-semibold"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                        onClick={() => selectCategory(category.name)}
+                      >
+                        <svg
+                          className="w-5 h-5 mr-2 text-gray-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d={category.icon}
+                          />
+                        </svg>
+                        {category.name}
+                      </button>
+                      {category.subItems && category.subItems.length > 0 && (
+                        <button
+                          onClick={() => toggleCategory(category.name)}
+                          className="p-1.5"
+                        >
+                          <svg
+                            className={`w-4 h-4 transform transition-transform duration-200 ${
+                              openCategories.includes(category.name) ? "rotate-180" : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {openCategories.includes(category.name) &&
+                      category.subItems &&
+                      category.subItems.length > 0 && (
+                        <ul className="ml-4 mt-1">
+                          {category.subItems.map(subItem => (
+                            <li key={subItem.name}>
+                              <div className="flex items-center justify-between">
+                                <button
+                                  className={`flex-1 text-left py-1 px-3 rounded-lg flex items-center transition-all duration-200 ${
+                                    selectedSubItem === subItem.filter
+                                      ? "bg-emerald-100 text-emerald-800 font-semibold"
+                                      : "text-gray-600 hover:bg-gray-100"
+                                  }`}
+                                  onClick={() => selectSubItem(category.name, subItem.filter)}
+                                >
+                                  <span>{subItem.name}</span>
+                                </button>
+                                {subItem.subSubItems && subItem.subSubItems.length > 0 && (
+                                  <button
+                                    onClick={() => toggleCategory(`${category.name}-${subItem.name}`)}
+                                    className="p-1.5"
+                                  >
+                                    <svg
+                                      className={`w-4 h-4 transform transition-transform duration-200 ${
+                                        openCategories.includes(`${category.name}-${subItem.name}`)
+                                          ? "rotate-180"
+                                          : ""
+                                      }`}
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M19 9l-7 7-7-7"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                              {subItem.subSubItems &&
+                                openCategories.includes(`${category.name}-${subItem.name}`) && (
+                                  <ul className="ml-4 mt-1">
+                                    {subItem.subSubItems.map(subSubItem => (
+                                      <li key={subSubItem.name}>
+                                        <button
+                                          className={`w-full text-left py-1 px-3 rounded-lg flex items-center transition-all duration-200 ${
+                                            selectedSubSubItem === subSubItem.filter
+                                              ? "bg-emerald-100 text-emerald-800 font-semibold"
+                                              : "text-gray-600 hover:bg-gray-100"
+                                          }`}
+                                          onClick={() =>
+                                            selectSubSubItem(category.name, subItem.filter, subSubItem.filter)
+                                          }
+                                        >
+                                          {subSubItem.name}
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Sort & Filter Section */}
+              <div className="border-t pt-3">
+                <h3 className="text-base font-semibold text-gray-900 mb-2">Sort & Filter</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                    <select
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value)}
+                      className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md bg-white hover:bg-gray-100 transition-all duration-200 text-gray-900"
+                    >
+                      <option value="default">Default</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                      <option value="brand">Brand (A-Z)</option>
+                      <option value="loft">Loft (Low to High)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                    <select
+                      value={filterBrand}
+                      onChange={(e) => setFilterBrand(e.target.value)}
+                      className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md bg-white hover:bg-gray-100 transition-all duration-200 text-gray-900"
+                    >
+                      <option value="">All Brands</option>
+                      {brandOptions.map(brand => (
+                        <option key={brand} value={brand}>{brand}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Handedness</label>
+                    <div className="flex gap-2">
+                      <button
+                        className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                          filterHandedness === "Right-Handed"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                        onClick={() => setFilterHandedness(filterHandedness === "Right-Handed" ? "" : "Right-Handed")}
+                      >
+                        Right-Handed
+                      </button>
+                      <button
+                        className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                          filterHandedness === "Left-Handed"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                        onClick={() => setFilterHandedness(filterHandedness === "Left-Handed" ? "" : "Left-Handed")}
+                      >
+                        Left-Handed
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Skill Level</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {handicapperlevelOptions.map(level => (
+                        <button
+                          key={level}
+                          className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                            filterHandicapperLevel === level
+                              ? "bg-emerald-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                          onClick={() => setFilterHandicapperLevel(filterHandicapperLevel === level ? "" : level)}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={filterPriceMin}
+                        onChange={(e) => setFilterPriceMin(e.target.value)}
+                        className="block w-full pl-3 pr-3 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md text-gray-900"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={filterPriceMax}
+                        onChange={(e) => setFilterPriceMax(e.target.value)}
+                        className="block w-full pl-3 pr-3 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md text-gray-900"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Filter by My Clubs Gaps</label>
+                    <button
+                      onClick={() => setFilterByMyClubsGaps(!filterByMyClubsGaps)}
+                      disabled={recommendedLofts.length === 0}
+                      className={`w-full py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                        recommendedLofts.length === 0
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : filterByMyClubsGaps
+                          ? "bg-emerald-600 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      {recommendedLofts.length === 0
+                        ? "No Lofts Entered"
+                        : filterByMyClubsGaps
+                        ? "Filtering by Gaps"
+                        : "Filter by Gaps"}
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSortOption("default");
+                      setFilterHandedness("");
+                      setFilterBrand("");
+                      setFilterHandicapperLevel("");
+                      setFilterPriceMin("");
+                      setFilterPriceMax("");
+                      setFilterByMyClubsGaps(false);
+                    }}
+                    className="w-full px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-all duration-200 text-sm"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            </nav>
+          </div>
+
+          {/* Desktop Sidebar */}
+          <nav
+            className="hidden md:block w-64 bg-gray-50 h-[calc(100vh-64px)] sticky top-[64px] p-4 shadow-md flex-shrink-0 overflow-y-auto"
+          >
+            <ul className="mb-4">
               {categories.map(category => (
-                <li key={category.name} className="mb-2">
+                <li key={category.name} className="mb-1">
                   <div className="flex items-center justify-between">
                     <button
-                      className={`flex-1 text-left py-2 px-4 rounded-lg flex items-center transition ${selectedCategory === category.name
-                        ? "bg-gray-200 text-gray-800 font-semibold"
-                        : "text-gray-600 hover:bg-gray-100"
-                        }`}
+                      className={`flex-1 text-left py-1.5 px-3 rounded-lg flex items-center transition-all duration-200 ${
+                        selectedCategory === category.name
+                          ? "bg-emerald-100 text-emerald-800 font-semibold"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
                       onClick={() => selectCategory(category.name)}
                     >
                       <svg
@@ -654,11 +937,12 @@ const App: React.FC = () => {
                     {category.subItems && category.subItems.length > 0 && (
                       <button
                         onClick={() => toggleCategory(category.name)}
-                        className="p-2"
+                        className="p-1.5"
                       >
                         <svg
-                          className={`w-4 h-4 transform transition-transform ${openCategories.includes(category.name) ? "rotate-180" : ""
-                            }`}
+                          className={`w-4 h-4 transform transition-transform duration-200 ${
+                            openCategories.includes(category.name) ? "rotate-180" : ""
+                          }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -673,81 +957,87 @@ const App: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  {openCategories.includes(category.name) && category.subItems && category.subItems.length > 0 && (
-                    <ul className="ml-6 mt-1">
-                      {category.subItems.map(subItem => (
-                        <li key={subItem.name}>
-                          <div className="flex items-center justify-between">
-                            <button
-                              className={`flex-1 text-left py-1 px-4 rounded-lg flex items-center transition ${selectedSubItem === subItem.filter
-                                ? "bg-gray-200 text-gray-800 font-semibold"
-                                : "text-gray-600 hover:bg-gray-100"
-                                }`}
-                              onClick={() => selectSubItem(category.name, subItem.filter)}
-                            >
-                              <span>{subItem.name}</span>
-                            </button>
-                            {subItem.subSubItems && subItem.subSubItems.length > 0 && (
+                  {openCategories.includes(category.name) &&
+                    category.subItems &&
+                    category.subItems.length > 0 && (
+                      <ul className="ml-4 mt-1">
+                        {category.subItems.map(subItem => (
+                          <li key={subItem.name}>
+                            <div className="flex items-center justify-between">
                               <button
-                                onClick={() => toggleCategory(`${category.name}-${subItem.name}`)}
-                                className="p-2"
+                                className={`flex-1 text-left py-1 px-3 rounded-lg flex items-center transition-all duration-200 ${
+                                  selectedSubItem === subItem.filter
+                                    ? "bg-emerald-100 text-emerald-800 font-semibold"
+                                    : "text-gray-600 hover:bg-gray-100"
+                                }`}
+                                onClick={() => selectSubItem(category.name, subItem.filter)}
                               >
-                                <svg
-                                  className={`w-4 h-4 transform transition-transform ${openCategories.includes(`${category.name}-${subItem.name}`)
-                                    ? "rotate-180"
-                                    : ""
-                                    }`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
+                                <span>{subItem.name}</span>
                               </button>
-                            )}
-                          </div>
-                          {subItem.subSubItems && openCategories.includes(`${category.name}-${subItem.name}`) && (
-                            <ul className="ml-6 mt-1">
-                              {subItem.subSubItems.map(subSubItem => (
-                                <li key={subSubItem.name}>
-                                  <button
-                                    className={`w-full text-left py-1 px-4 rounded-lg flex items-center transition ${selectedSubSubItem === subSubItem.filter
-                                      ? "bg-gray-200 text-gray-800 font-semibold"
-                                      : "text-gray-600 hover:bg-gray-100"
-                                      }`}
-                                    onClick={() =>
-                                      selectSubSubItem(category.name, subItem.filter, subSubItem.filter)
-                                    }
+                              {subItem.subSubItems && subItem.subSubItems.length > 0 && (
+                                <button
+                                  onClick={() => toggleCategory(`${category.name}-${subItem.name}`)}
+                                  className="p-1.5"
+                                >
+                                  <svg
+                                    className={`w-4 h-4 transform transition-transform duration-200 ${
+                                      openCategories.includes(`${category.name}-${subItem.name}`)
+                                        ? "rotate-180"
+                                        : ""
+                                    }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                   >
-                                    {subSubItem.name}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            {subItem.subSubItems &&
+                              openCategories.includes(`${category.name}-${subItem.name}`) && (
+                                <ul className="ml-4 mt-1">
+                                  {subItem.subSubItems.map(subSubItem => (
+                                    <li key={subSubItem.name}>
+                                      <button
+                                        className={`w-full text-left py-1 px-3 rounded-lg flex items-center transition-all duration-200 ${
+                                          selectedSubSubItem === subSubItem.filter
+                                            ? "bg-emerald-100 text-emerald-800 font-semibold"
+                                            : "text-gray-600 hover:bg-gray-100"
+                                        }`}
+                                        onClick={() =>
+                                          selectSubSubItem(category.name, subItem.filter, subSubItem.filter)
+                                        }
+                                      >
+                                        {subSubItem.name}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                 </li>
               ))}
             </ul>
-
-            <div className="border-t pt-4">
+            <div className="border-t pt-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">Sort & Filter</h3>
+                <h3 className="text-base font-semibold text-gray-900">Sort & Filter</h3>
                 <button
                   onClick={() => setIsSortFilterOpen(!isSortFilterOpen)}
-                  className="p-2"
+                  className="p-1.5"
                 >
                   <svg
-                    className={`w-4 h-4 transform transition-transform ${isSortFilterOpen ? "rotate-180" : ""
-                      }`}
+                    className={`w-4 h-4 transform transition-transform duration-200 ${
+                      isSortFilterOpen ? "rotate-180" : ""
+                    }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -762,13 +1052,13 @@ const App: React.FC = () => {
                 </button>
               </div>
               {isSortFilterOpen && (
-                <div className="mt-4 space-y-4">
+                <div className="mt-3 space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
                     <select
                       value={sortOption}
                       onChange={(e) => setSortOption(e.target.value)}
-                      className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors md:text-sm"
+                      className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md bg-white hover:bg-gray-100 transition-all duration-200 text-gray-900"
                     >
                       <option value="default">Default</option>
                       <option value="price-asc">Price: Low to High</option>
@@ -782,7 +1072,7 @@ const App: React.FC = () => {
                     <select
                       value={filterBrand}
                       onChange={(e) => setFilterBrand(e.target.value)}
-                      className="block w-full pl-4 pr-10 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors md:text-sm"
+                      className="block w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md bg-white hover:bg-gray-100 transition-all duration-200 text-gray-900"
                     >
                       <option value="">All Brands</option>
                       {brandOptions.map(brand => (
@@ -794,19 +1084,21 @@ const App: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Handedness</label>
                     <div className="flex gap-2">
                       <button
-                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${filterHandedness === "Right-Handed"
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          } md:text-sm`}
+                        className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                          filterHandedness === "Right-Handed"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
                         onClick={() => setFilterHandedness(filterHandedness === "Right-Handed" ? "" : "Right-Handed")}
                       >
                         Right-Handed
                       </button>
                       <button
-                        className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${filterHandedness === "Left-Handed"
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          } md:text-sm`}
+                        className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                          filterHandedness === "Left-Handed"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
                         onClick={() => setFilterHandedness(filterHandedness === "Left-Handed" ? "" : "Left-Handed")}
                       >
                         Left-Handed
@@ -814,15 +1106,16 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Handicapper Level</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Skill Level</label>
                     <div className="flex gap-2 flex-wrap">
                       {handicapperlevelOptions.map(level => (
                         <button
                           key={level}
-                          className={`flex-1 py-3 px-4 rounded-md text-base font-medium transition-colors ${filterHandicapperLevel === level
-                            ? "bg-green-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            } md:text-sm`}
+                          className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                            filterHandicapperLevel === level
+                              ? "bg-emerald-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
                           onClick={() => setFilterHandicapperLevel(filterHandicapperLevel === level ? "" : level)}
                         >
                           {level}
@@ -832,20 +1125,20 @@ const App: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       <input
                         type="number"
                         placeholder="Min"
                         value={filterPriceMin}
                         onChange={(e) => setFilterPriceMin(e.target.value)}
-                        className="block w-full pl-4 pr-4 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md md:text-sm"
+                        className="block w-full pl-3 pr-3 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md text-gray-900"
                       />
                       <input
                         type="number"
                         placeholder="Max"
                         value={filterPriceMax}
                         onChange={(e) => setFilterPriceMax(e.target.value)}
-                        className="block w-full pl-4 pr-4 py-3 text-base border-gray-300 focus:outline-none focus:ring-green-600 focus:border-green-600 rounded-md md:text-sm"
+                        className="block w-full pl-3 pr-3 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-emerald-600 focus:border-emerald-600 rounded-md text-gray-900"
                       />
                     </div>
                   </div>
@@ -854,18 +1147,19 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setFilterByMyClubsGaps(!filterByMyClubsGaps)}
                       disabled={recommendedLofts.length === 0}
-                      className={`w-full py-3 px-4 rounded-md text-base font-medium transition-colors ${recommendedLofts.length === 0
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : filterByMyClubsGaps
-                          ? "bg-green-600 text-white"
+                      className={`w-full py-1.5 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+                        recommendedLofts.length === 0
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : filterByMyClubsGaps
+                          ? "bg-emerald-600 text-white"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        } md:text-sm`}
+                      }`}
                     >
                       {recommendedLofts.length === 0
                         ? "No Lofts Entered"
                         : filterByMyClubsGaps
-                          ? "Filtering by Gaps"
-                          : "Filter by Gaps"}
+                        ? "Filtering by Gaps"
+                        : "Filter by Gaps"}
                     </button>
                   </div>
                   <button
@@ -878,7 +1172,7 @@ const App: React.FC = () => {
                       setFilterPriceMax('');
                       setFilterByMyClubsGaps(false);
                     }}
-                    className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-base md:text-sm"
+                    className="w-full px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-all duration-200 text-sm"
                   >
                     Clear Filters
                   </button>
@@ -886,61 +1180,35 @@ const App: React.FC = () => {
               )}
             </div>
           </nav>
-          <main
-            className={`flex-1 p-6 transition-all duration-300 ${isBagPinned ? 'md:mr-80' : ''
-              }`}
-          >
-            <div className="max-w-7xl mx-auto px-4">
-              {/* Page Size Selector and Sticky Search Bar */}
-              <div className="mb-6">
-                <div className={`flex flex-col sm:flex-row sm:items-center sm:gap-4 ${showStickySearchBar && (!isMobile || (!isCategorySidebarOpen && !isBagSidebarOpen)) ? 'fixed top-[64px] bg-gray-100 z-40 shadow-sm py-2 px-4 w-full md:w-[calc(100%-256px)] md:left-[256px] md:max-w-7xl md:mx-auto' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-gray-700">Items per page:</label>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="px-3 py-1.5 bg-white border border-gray-300 rounded-full shadow-sm text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:bg-gray-50"
-                    >
-                      {pageSizeOptions.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {showStickySearchBar && (!isMobile || (!isCategorySidebarOpen && !isBagSidebarOpen)) && (
-                    <div className="relative w-full sm:w-64">
-                      <input
-                        type="text"
-                        placeholder="Search clubs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full py-2 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600 text-sm"
-                      />
-                      <button
-                        className="absolute right-0 top-0 h-full px-2 bg-green-600 text-white rounded-r-md hover:bg-green-700 transition-colors"
-                        onClick={() => setSearchQuery(searchQuery)}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-sm text-gray-500">
-                    Showing {startIndex + 1}–{Math.min(endIndex, totalItems)} of {totalItems} clubs
-                  </p>
+
+          {/* Main Content */}
+          <main className={`flex-1 p-3 transition-all duration-300 ${isBagPinned ? 'md:mr-80' : ''}`}>
+            <div className="max-w-7xl mx-auto">
+              {/* Page Size Selector */}
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-gray-600">Items per page:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded-md text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all duration-200 hover:bg-gray-100"
+                  >
+                    {pageSizeOptions.map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
                 </div>
-                {/* Add padding to prevent content from being hidden behind the fixed search bar */}
-                {showStickySearchBar && (!isMobile || (!isCategorySidebarOpen && !isBagSidebarOpen)) && (
-                  <div className="h-[72px]"></div>
-                )}
+                <p className="text-xs text-gray-500 mt-2 sm:mt-0">
+                  Showing {startIndex + 1}–{Math.min(endIndex, totalItems)} of {totalItems} clubs
+                </p>
               </div>
 
               {/* Club List */}
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-6">     
-                  {paginatedClubModels.length > 0 ? (
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3">
+                {paginatedClubModels.length > 0 ? (
                   paginatedClubModels.map(clubModel => {
                     if (!clubModel.variants || clubModel.variants.length === 0) {
                       console.warn(`No variants found for ${clubModel.brand} ${clubModel.model}`);
@@ -959,7 +1227,7 @@ const App: React.FC = () => {
                       <ClubCard
                         key={`${clubModel.brand}-${clubModel.model}`}
                         club={club}
-                        clubModel={clubModel} // Pass the full ClubModel
+                        clubModel={clubModel}
                         isSelected={selectedClubs.some(c => c.id === clubModel.variants[0].id)}
                         onSelect={() => handleAddToBag(club)}
                         onDeselect={() => handleRemoveFromBag(clubModel.variants[0].id)}
@@ -978,15 +1246,16 @@ const App: React.FC = () => {
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="mt-8 flex justify-center">
+                <div className="mt-6 flex justify-center">
                   <nav className="inline-flex items-center gap-1 bg-white p-2 rounded-full shadow-sm border border-gray-200">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${currentPage === 1
-                        ? "text-gray-400 cursor-not-allowed"
-                        : "text-gray-600 hover:bg-green-50 hover:text-green-700"
-                        }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
+                        currentPage === 1
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-emerald-50 hover:text-emerald-700"
+                      }`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -997,7 +1266,7 @@ const App: React.FC = () => {
                       <>
                         <button
                           onClick={() => setCurrentPage(1)}
-                          className="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-all duration-200"
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
                         >
                           1
                         </button>
@@ -1011,10 +1280,11 @@ const App: React.FC = () => {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${currentPage === page
-                          ? "bg-green-600 text-white shadow-inner"
-                          : "text-gray-600 hover:bg-green-50 hover:text-green-700"
-                          }`}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
+                          currentPage === page
+                            ? "bg-emerald-600 text-white shadow-inner"
+                            : "text-gray-600 hover:bg-emerald-50 hover:text-emerald-700"
+                        }`}
                       >
                         {page}
                       </button>
@@ -1027,7 +1297,7 @@ const App: React.FC = () => {
                         )}
                         <button
                           onClick={() => setCurrentPage(totalPages)}
-                          className="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-all duration-200"
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
                         >
                           {totalPages}
                         </button>
@@ -1037,10 +1307,11 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${currentPage === totalPages
-                        ? "text-gray-400 cursor-not-allowed"
-                        : "text-gray-600 hover:bg-green-50 hover:text-green-700"
-                        }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200 ${
+                        currentPage === totalPages
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-emerald-50 hover:text-emerald-700"
+                      }`}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -1061,8 +1332,27 @@ const App: React.FC = () => {
           onOpenChange={setIsBagSidebarOpen}
           defaultOpen={selectedClubs.length > 0 || isBagPinned}
           clubsData={clubsData.clubs}
+          onCheckout={() => setIsCheckoutModalOpen(true)}
+          onClearBag={() => setSelectedClubs([])}
         />
       </div>
+
+      {/* Floating Action Button for Filters (Mobile) */}
+      <button
+        className="md:hidden fixed bottom-4 right-4 bg-emerald-600 text-white p-3 rounded-full shadow-lg hover:bg-emerald-700 transition-all duration-200 z-40 hover:scale-110"
+        onClick={() => setIsCategorySidebarOpen(true)}
+        aria-label="Open filters"
+      >
+        <div className="relative">
+          <FunnelIcon className="w-6 h-6" />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-amber-400 text-emerald-900 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </div>
+      </button>
+
       <ClubDetailModal
         clubModel={selectedClubModel}
         variant={selectedVariant}
@@ -1084,7 +1374,18 @@ const App: React.FC = () => {
         onClose={() => setIsMyClubsModalOpen(false)}
         onSave={handleSaveMyClubsLofts}
         initialLofts={myClubsLofts}
+        onStartBuilding={() => {
+          setIsMyClubsModalOpen(false);
+          setIsBagSidebarOpen(true);
+          setFilterByMyClubsGaps(true);
+        }}
       />
+      {isCheckoutModalOpen && (
+        <CheckoutSummaryModal
+          selectedClubs={selectedClubs}
+          onClose={() => setIsCheckoutModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -6,9 +6,10 @@ interface MyClubsModalProps {
   onClose: () => void;
   onSave: (lofts: number[]) => void;
   initialLofts: number[];
+  onStartBuilding: () => void;
 }
 
-const MyClubsModal: React.FC<MyClubsModalProps> = ({ isOpen, onClose, onSave, initialLofts }) => {
+const MyClubsModal: React.FC<MyClubsModalProps> = ({ isOpen, onClose, onSave, initialLofts, onStartBuilding }) => {
   const [lofts, setLofts] = useState<number[]>(initialLofts.length > 0 ? initialLofts : [0]);
 
   useEffect(() => {
@@ -32,6 +33,19 @@ const MyClubsModal: React.FC<MyClubsModalProps> = ({ isOpen, onClose, onSave, in
   const removeLoftInput = (index: number) => {
     if (lofts.length === 1) return;
     setLofts(lofts.filter((_, i) => i !== index));
+  };
+
+  const handleSaveAndStartBuilding = () => {
+    const validLofts = lofts.filter(loft => !isNaN(loft) && loft > 0 && loft <= 70);
+    if (validLofts.length === 0) {
+      toast.error("Please enter at least one valid loft (0–70°).", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
+    onSave(validLofts);
+    onStartBuilding();
   };
 
   const handleSave = () => {
@@ -59,7 +73,7 @@ const MyClubsModal: React.FC<MyClubsModalProps> = ({ isOpen, onClose, onSave, in
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">My Clubs</h2>
+          <h2 className="text-xl font-bold text-gray-800">My Current Clubs</h2>
           <button
             className="text-gray-500 hover:text-gray-700"
             onClick={onClose}
@@ -118,8 +132,14 @@ const MyClubsModal: React.FC<MyClubsModalProps> = ({ isOpen, onClose, onSave, in
         </div>
         <div className="flex gap-3">
           <button
-            onClick={handleSave}
+            onClick={handleSaveAndStartBuilding}
             className="flex-1 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+          >
+            Save and Start Building
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
           >
             Save
           </button>

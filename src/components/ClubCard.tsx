@@ -5,7 +5,7 @@ interface ClubCardProps {
   club: Club & {
     handicapperlevel: string;
   };
-  clubModel: ClubModel; // Add clubModel prop
+  clubModel: ClubModel;
   isSelected: boolean;
   onSelect: () => void;
   onDeselect: () => void;
@@ -24,7 +24,7 @@ const ClubCard: React.FC<ClubCardProps> = ({
   isBagFull,
   imageSrc,
 }) => {
-  console.log(`ClubCard ImageSrc for ${club.brand} ${club.model}: ${imageSrc}`);
+  console.log(`ClubCard ImageSrc for ${club.brand} ${club.model}: ${imageSrc}, isSelected: ${isSelected}`);
 
   const [isImageLoading, setIsImageLoading] = useState(true);
 
@@ -32,10 +32,9 @@ const ClubCard: React.FC<ClubCardProps> = ({
     onViewDetails();
   };
 
-  // Calculate the cheapest price among all variants using the price field
   const cheapestPrice = clubModel.variants.length > 0
     ? Math.min(...clubModel.variants.map(v => v.price))
-    : club.price; // Fallback to the single price if no variants
+    : club.price;
   const priceDisplay = `£${cheapestPrice.toFixed(2)}`;
 
   const handleAddClick = (e: React.MouseEvent) => {
@@ -52,23 +51,22 @@ const ClubCard: React.FC<ClubCardProps> = ({
     onDeselect();
   };
 
-  // Determine badge color and icon based on handicapperlevel
   const getHandicapperLevelStyles = (level: string) => {
     switch (level) {
-      case "Low Handicapper":
+      case "Beginner":
         return {
-          bgColor: "bg-emerald-100 text-emerald-800",
-          icon: "★",
+          bgColor: "bg-green-100 text-green-800",
+          icon: "🚩",
         };
-      case "Mid Handicapper":
+      case "Intermediate":
         return {
-          bgColor: "bg-sky-100 text-sky-800",
+          bgColor: "bg-yellow-100 text-yellow-800",
           icon: "➔",
         };
-      case "High Handicapper":
+      case "Advanced":
         return {
-          bgColor: "bg-amber-100 text-amber-800",
-          icon: "🚩",
+          bgColor: "bg-blue-100 text-blue-800",
+          icon: "★",
         };
       default:
         return {
@@ -80,12 +78,11 @@ const ClubCard: React.FC<ClubCardProps> = ({
 
   const { bgColor, icon } = getHandicapperLevelStyles(club.handicapperlevel);
 
-  // Determine the type label: use specifictype if available, otherwise fall back to type
   const typeLabel = club.specifictype || club.type;
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg">
-      <div onClick={handleViewDetails} className="cursor-pointer">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg flex flex-col h-72">
+      <div onClick={handleViewDetails} className="cursor-pointer flex flex-col flex-1">
         <div className="relative w-[9.375rem] h-[6.25rem] mx-auto mt-2">
           {isImageLoading && (
             <div className="absolute top-0 left-0 w-full h-full bg-gray-200 animate-pulse rounded-lg" />
@@ -103,24 +100,26 @@ const ClubCard: React.FC<ClubCardProps> = ({
             }}
           />
         </div>
-        <div className="p-3 text-center">
-          <h3 className="text-sm text-gray-800 truncate">
-            {club.brand} {club.model}
-          </h3>
-          <p className="text-xs text-gray-600 mt-1">
-            {typeLabel} - {club.loft || 'N/A'}
-          </p>
-          <div className="mt-1 flex justify-center">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
-              {icon && <span className="mr-1">{icon}</span>}
-              {club.handicapperlevel}
-            </span>
+        <div className="p-3 text-center flex flex-col flex-1">
+          <div className="flex-1">
+            <h3 className="text-sm text-gray-800 truncate">
+              {club.brand} {club.model}
+            </h3>
+            <p className="text-xs text-gray-600 mt-1">
+              {typeLabel} - {club.loft || 'N/A'}
+            </p>
+            <div className="mt-1 flex justify-center">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
+                {icon && <span className="mr-1">{icon}</span>}
+                {club.handicapperlevel}
+              </span>
+            </div>
+            <p className="text-sm font-semibold text-gray-800 mt-1">
+              {priceDisplay}
+            </p>
           </div>
-          <p className="text-sm font-semibold text-gray-800 mt-1">
-            {priceDisplay}
-          </p>
           <button
-            className={`group flex h-7 w-full rounded bg-gray-100 items-center justify-between rounded-md text-xs text-gray-900 transition-colors hover:bg-green-600 hover:text-white focus:bg-green-600 focus:text-white focus:outline-0 md:h-9 md:text-sm mt-2 ${
+            className={`group flex h-7 w-full rounded bg-gray-100 items-center justify-between rounded-md text-xs text-gray-900 transition-colors hover:bg-green-600 hover:text-white focus:bg-green-600 focus:text-white focus:outline-0 md:h-9 mt-2 ${
               isSelected
                 ? "bg-green-600 text-white hover:bg-green-700"
                 : isBagFull
@@ -129,6 +128,7 @@ const ClubCard: React.FC<ClubCardProps> = ({
             }`}
             onClick={isSelected ? handleRemoveClick : handleAddClick}
             disabled={isBagFull && !isSelected}
+            title={isSelected ? "Remove from Bag" : isBagFull ? "Bag Full" : "Add to Bag"}
           >
             <span className="flex-1">
               {isSelected ? "Remove" : isBagFull ? "Bag Full" : "Add"}
